@@ -42,9 +42,14 @@ Local/remote state, persistence.
 
 ## 10. Architecture / Flow
 ```mermaid
-graph LR
-  U[User] --> UI[UI]
-  UI --> Logic
+flowchart LR
+  User -->|shortcut/menu| Tray[Menu Bar / Tray]
+  Tray --> Main[Electron Main Process]
+  Main --> Capture[Capture Engine]
+  Capture --> Renderer[Annotation UI]
+  Renderer --> Export[Export Pipeline]
+  Export --> Storage[(Local / Cloud Storage)]
+  Main --> Telemetry[(Metrics / Logs)]
 ```
 
 ## 11. Edge Cases & Error Handling
