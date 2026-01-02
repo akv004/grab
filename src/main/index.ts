@@ -106,20 +106,22 @@ async function handleCaptureFullScreen(): Promise<void> {
 
 /**
  * Handle region capture
- * For MVP, we'll capture full screen first, then crop
+ * For MVP, we notify the user that region selection is not yet available
+ * and capture full screen as a fallback
  * Full region overlay will be implemented in next iteration
  */
 async function handleCaptureRegion(): Promise<void> {
-  // For MVP, just capture full screen
+  // For MVP, inform user and capture full screen as fallback
   // TODO: Implement region selection overlay (TASK-0007 step 3)
   captureLogger.info('Region capture requested - using full screen for MVP');
-  await performCapture({ mode: 'full-screen' });
   
   // Show notification that region selection is coming
   showNotification(
     'Region Capture', 
-    'Region selection overlay coming soon. Captured full screen instead.'
+    'Region selection will be available in the next update. Capturing full screen instead.'
   );
+  
+  await performCapture({ mode: 'full-screen' });
 }
 
 /**

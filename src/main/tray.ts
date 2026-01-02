@@ -19,19 +19,31 @@ let tray: Tray | null = null;
 
 /**
  * Create a simple tray icon
- * For MVP, we use a simple placeholder icon
+ * For MVP, we create a simple icon programmatically
  */
 function createTrayIcon(): Electron.NativeImage {
-  // Create a simple icon - 16x16 for macOS menu bar, 32x32 for Windows
-  const size = process.platform === 'darwin' ? 16 : 32;
-  
-  // Create a simple colored icon using canvas-like approach
-  // For now, we'll use an empty transparent icon that will be visible in the tray
-  const icon = nativeImage.createEmpty();
-  
+  // Create a simple 16x16 icon with a camera symbol
   // In production, this would load from assets/icon.png
-  // For MVP, we'll let Electron use its default
-  return icon;
+  // For MVP, we create a basic programmatic icon
+  
+  // Try to load icon from assets directory first
+  const iconPath = process.platform === 'darwin' 
+    ? path.join(__dirname, '..', '..', 'assets', 'iconTemplate.png')
+    : path.join(__dirname, '..', '..', 'assets', 'icon.png');
+  
+  try {
+    const icon = nativeImage.createFromPath(iconPath);
+    if (!icon.isEmpty()) {
+      return icon;
+    }
+  } catch {
+    // Fall through to create empty icon
+  }
+  
+  // If icon file not found, create an empty icon
+  // This will show as a small dot or default icon depending on OS
+  captureLogger.warn('Tray icon not found, using default', { iconPath });
+  return nativeImage.createEmpty();
 }
 
 /**

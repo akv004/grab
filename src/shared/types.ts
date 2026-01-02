@@ -84,9 +84,11 @@ export interface CapturePreferences {
 
 /**
  * Default preferences
+ * Note: outputFolder is intentionally empty as it will be set to platform-specific
+ * defaults by the PreferencesStore when it initializes
  */
 export const DEFAULT_PREFERENCES: CapturePreferences = {
-  outputFolder: '',
+  outputFolder: '', // Set by PreferencesStore.getDefaultOutputFolder()
   copyToClipboard: true,
   saveToDisk: true,
   defaultMode: 'full-screen',
