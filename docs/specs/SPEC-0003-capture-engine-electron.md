@@ -85,7 +85,7 @@ Invocation: `captureEngine.capture(request): Promise<CaptureResult>`, resolving 
 
 ## 9. Data Model / Storage
 - Preferences: output folder path, clipboard toggle, default mode, optional naming template.
-- File naming convention: `grab-YYYYMMDD-HHmmss-{mode}-{display|window|region}.png`.
+- File naming convention: `grab-YYYYMMDD-HHmmss-{mode}-{target}.png` (where `{target}` is the display ID, window handle, or region label).
 - Metadata stored alongside file (JSON sidecar or in-memory handoff) for downstream workflows.
 
 ## 10. Architecture / Flow
@@ -130,7 +130,7 @@ graph LR
 - Fallback: clipboard-only capture when disk write fails; disable capture actions when permissions missing.
 
 ## 16. Open Questions
-- Should window selection be thumbnail-based or list-only for MVP?
+- Should window selection be thumbnail-based or list-only for MVP-1?
 - Do we need per-OS default output folders or a unified app directory?
 
 ## 17. Acceptance Criteria
