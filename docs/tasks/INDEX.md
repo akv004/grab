@@ -10,6 +10,6 @@ Naming: `TASK-####-short-title.md`
 | TASK-0004 | SPEC-0002 | Not Started | TBD | [Task](TASK-0004-tray-and-menu.md) |
 | TASK-0005 | SPEC-0002 | Not Started | TBD | [Task](TASK-0005-global-shortcuts.md) |
 | TASK-0006 | SPEC-0002 | Not Started | TBD | [Task](TASK-0006-settings-window.md) |
-| TASK-0007 | SPEC-0003 | Not Started | TBD | [Task](TASK-0007-electron-capture-engine.md) |
+| TASK-0007 | SPEC-0003 | In Progress | GitHub Copilot | [Task](TASK-0007-electron-capture-engine.md) |
 
 Template: [Task Template](templates/TASK_TEMPLATE.md)

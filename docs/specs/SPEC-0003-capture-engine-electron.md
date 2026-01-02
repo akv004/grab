@@ -1,6 +1,6 @@
 # SPEC-0003: Capture Engine (Electron)
-- **Status**: Draft
-- **Owner**: TBD
+- **Status**: In Progress
+- **Owner**: GitHub Copilot
 - **Target Release**: MVP-1
 - **Created**: 2026-01-02
 - **Updated**: 2026-01-02
@@ -143,3 +143,11 @@ graph LR
 
 ## 18. Change Log
 - 2026-01-02: Draft created.
+- 2026-01-02: Status changed to In Progress. First iteration implementation:
+  - Implemented capture engine with full-screen, display, window, and region modes
+  - Implemented export pipeline with save-to-disk and clipboard copy
+  - Implemented preferences store for user settings
+  - Implemented system tray and global shortcuts
+  - Added comprehensive logging per observability requirements
+  - Added 45 unit tests for naming, types, and logger modules
+  - File structure: src/main/capture/*, src/main/export/*, src/main/preferences/*
