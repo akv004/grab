@@ -197,11 +197,10 @@ body {
   flex: 1;
 }
 
-/* Floating Toolbar (Top Center) */
+/* Floating Toolbar (Top Center - Positioned by JS) */
 .floating-toolbar {
   position: absolute;
-  top: 24px;
-  left: 50%;
+  /* Top and Left are calculated in editor.ts */
   transform: translateX(-50%);
 
   background: rgba(30, 30, 30, 0.90);

@@ -134,6 +134,11 @@ export const IPC_CHANNELS = {
   // Notifications
   NOTIFY_SUCCESS: 'notify:success',
   NOTIFY_ERROR: 'notify:error',
+
+  // Editor Actions
+  EDITOR_COPY: 'editor:copy',
+  EDITOR_SAVE: 'editor:save',
+  EDITOR_REVEAL: 'editor:reveal',
 } as const;
 
 /**

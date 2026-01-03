@@ -101,24 +101,61 @@ ipcRenderer.on(IPC_CHANNELS.SHOW_CAPTURE, (_event, filePath: string) => {
     updatePreview(filePath);
 });
 
-// UI Actions - Placeholder for now
-// These will send signals back to main normally, but for MVP 
-// the main process already auto-saved/copied
-if (saveBtn) {
-    saveBtn.addEventListener('click', () => {
-        // Re-trigger save or open folder?
-        console.log('Save clicked');
-    });
-}
+// UI Actions
+const mapAction = (id: string, handler: (btn: HTMLElement) => void) => {
+    const btn = document.getElementById(id);
+    if (!btn) return;
+    btn.addEventListener('click', () => handler(btn));
+};
 
-if (copyBtn) {
-    copyBtn.addEventListener('click', () => {
-        console.log('Copy clicked');
-    });
-}
+const showFeedback = (btn: HTMLElement, originalContent: string, feedbackContent: string) => {
+    // Basic micro-interaction since we changed inner HTML structure
+    const label = btn.querySelector('.label');
+    if (!label) return;
 
-if (closeBtn) {
-    closeBtn.addEventListener('click', () => {
-        window.close();
-    });
-}
+    const originalText = label.textContent;
+    label.textContent = feedbackContent;
+    btn.classList.add('success'); // Assume styles.css handles this or we ignore for now
+
+    setTimeout(() => {
+        label.textContent = originalText;
+        btn.classList.remove('success');
+    }, 2000);
+};
+
+mapAction('copy-btn', (btn) => {
+    if (editor) {
+        const data = editor.getImageDataURL();
+        ipcRenderer.send(IPC_CHANNELS.EDITOR_COPY, data);
+        showFeedback(btn, '', 'Copied ✓');
+    }
+});
+
+mapAction('save-btn', (btn) => {
+    if (editor) {
+        const data = editor.getImageDataURL();
+        ipcRenderer.send(IPC_CHANNELS.EDITOR_SAVE, data);
+    }
+});
+
+mapAction('reveal-btn', () => {
+    if (currentFilePath) {
+        ipcRenderer.send(IPC_CHANNELS.EDITOR_REVEAL, currentFilePath);
+    }
+});
+
+mapAction('path-btn', (btn) => {
+    if (currentFilePath) {
+        // Copy text directly in renderer
+        navigator.clipboard.writeText(currentFilePath);
+
+        // Custom feedback for link-btn which doesn't have .label
+        const originalText = btn.innerHTML;
+        btn.innerHTML = '<span class="icon">✅</span> Copied';
+        setTimeout(() => btn.innerHTML = originalText, 2000);
+    }
+});
+
+mapAction('close-btn', () => {
+    window.close();
+});
