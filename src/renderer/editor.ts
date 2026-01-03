@@ -313,4 +313,82 @@ export class Editor {
     public clear() {
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
     }
+
+    public populateSidebar(history: any[]) {
+        console.log('Populating sidebar with', history.length, 'items');
+        const sidebar = document.querySelector('.history-list');
+        if (!sidebar) return;
+
+        sidebar.innerHTML = '';
+
+        // Sort items by date (newest first)
+        const sortedHistory = [...history].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+
+        // Group by Date
+        const groups: Record<string, any[]> = {};
+        sortedHistory.forEach(item => {
+            const date = new Date(item.timestamp);
+            const today = new Date();
+            const yesterday = new Date(today);
+            yesterday.setDate(yesterday.getDate() - 1);
+
+            let groupName = date.toLocaleDateString();
+
+            if (date.toDateString() === today.toDateString()) {
+                groupName = 'Today';
+            } else if (date.toDateString() === yesterday.toDateString()) {
+                groupName = 'Yesterday';
+            }
+
+            if (!groups[groupName]) {
+                groups[groupName] = [];
+            }
+            groups[groupName].push(item);
+        });
+
+        // Render Groups
+        Object.keys(groups).forEach(groupName => {
+            // Group Header
+            const header = document.createElement('div');
+            header.className = 'sidebar-header';
+            header.innerText = groupName;
+            sidebar.appendChild(header);
+
+            // Items
+            groups[groupName].forEach(item => {
+                const el = document.createElement('div');
+                el.className = 'history-item';
+                el.onclick = () => {
+                    this.loadImage(item.filePath);
+                    // Update active state
+                    document.querySelectorAll('.history-item').forEach(i => i.classList.remove('active'));
+                    el.classList.add('active');
+                };
+
+                // Thumbnail (if available) or Placeholder
+                const thumb = document.createElement('div');
+                thumb.className = 'history-thumb';
+                thumb.style.backgroundImage = `url('file://${item.filePath}')`; // Simple file URL for now
+                thumb.style.backgroundSize = 'cover';
+                thumb.style.backgroundPosition = 'center';
+
+                // Timestamp
+                const time = document.createElement('div');
+                time.className = 'history-date';
+                time.innerText = new Date(item.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+                el.appendChild(thumb);
+                el.appendChild(time);
+                sidebar.appendChild(el);
+            });
+        });
+
+        // Auto-select first item if exists
+        if (sortedHistory.length > 0) {
+            const firstItem = sidebar.querySelector('.history-item') as HTMLElement;
+            if (firstItem) {
+                firstItem.click();
+            }
+        }
+    }
 }

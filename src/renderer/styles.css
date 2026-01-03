@@ -45,8 +45,8 @@ body {
   font-weight: bold;
   text-transform: uppercase;
   color: #888;
-  margin-top: 24px;
-  /* Space for drag region */
+  margin-top: 12px;
+  margin-bottom: 4px;
 }
 
 /* Center Stage */

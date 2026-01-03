@@ -3,7 +3,7 @@
  */
 
 import { ipcRenderer } from 'electron';
-import { IPC_CHANNELS } from '../shared/types';
+import { IPC_CHANNELS } from '../shared/constants';
 import { Editor } from './editor';
 
 // Elements
@@ -34,38 +34,11 @@ function loadHistory() {
     ipcRenderer.send(IPC_CHANNELS.HISTORY_GET);
 }
 
-// Render history items
+// Handle history updates
 ipcRenderer.on(IPC_CHANNELS.HISTORY_RESULT, (_event, items: HistoryItem[]) => {
-    if (!historyList) return;
-
-    historyList.innerHTML = '';
-
-    items.forEach(item => {
-        const el = document.createElement('div');
-        el.className = 'history-item';
-        if (item.filePath === currentFilePath) {
-            el.classList.add('active');
-        }
-
-        el.onclick = () => {
-            // Request to show this image
-            // We can just update locally for now
-            updatePreview(item.filePath);
-        };
-
-        // Create thumbnail (using file protocol for MVP)
-        const thumb = document.createElement('img');
-        thumb.className = 'history-thumb';
-        thumb.src = `file://${item.filePath}`;
-
-        const date = document.createElement('div');
-        date.className = 'history-date';
-        date.innerText = new Date(item.timestamp).toLocaleTimeString();
-
-        el.appendChild(thumb);
-        el.appendChild(date);
-        historyList.appendChild(el);
-    });
+    if (editor) {
+        editor.populateSidebar(items);
+    }
 });
 
 function updatePreview(filePath: string) {

@@ -7,7 +7,8 @@
 import { app } from 'electron';
 import * as fs from 'fs';
 import * as path from 'path';
-import { CapturePreferences, DEFAULT_PREFERENCES } from '../../shared/types';
+import { CapturePreferences } from '../../shared/types';
+import { DEFAULT_PREFERENCES } from '../../shared/constants';
 import { preferencesLogger } from '../../shared/logger';
 
 const PREFERENCES_FILE = 'preferences.json';
@@ -25,7 +26,7 @@ class PreferencesStore {
     // Per SPEC-0003 Section 16: Default output folder per OS
     const platform = process.platform;
     const pictures = app.getPath('pictures');
-    
+
     switch (platform) {
       case 'darwin':
         return path.join(pictures, 'Grab');
@@ -41,24 +42,24 @@ class PreferencesStore {
       if (fs.existsSync(this.filePath)) {
         const data = fs.readFileSync(this.filePath, 'utf-8');
         const parsed = JSON.parse(data) as Partial<CapturePreferences>;
-        
+
         // Merge with defaults to ensure all fields exist
         const merged = { ...DEFAULT_PREFERENCES, ...parsed };
-        
+
         // Set default output folder if not set
         if (!merged.outputFolder) {
           merged.outputFolder = this.getDefaultOutputFolder();
         }
-        
+
         preferencesLogger.info('Preferences loaded', { path: this.filePath });
         return merged;
       }
     } catch (error) {
-      preferencesLogger.error('Failed to load preferences', { 
-        error: error instanceof Error ? error.message : String(error) 
+      preferencesLogger.error('Failed to load preferences', {
+        error: error instanceof Error ? error.message : String(error)
       });
     }
-    
+
     // Return defaults with platform-specific output folder
     const defaults = { ...DEFAULT_PREFERENCES };
     defaults.outputFolder = this.getDefaultOutputFolder();
@@ -71,12 +72,12 @@ class PreferencesStore {
       if (!fs.existsSync(dir)) {
         fs.mkdirSync(dir, { recursive: true });
       }
-      
+
       fs.writeFileSync(this.filePath, JSON.stringify(this.preferences, null, 2), 'utf-8');
       preferencesLogger.info('Preferences saved', { path: this.filePath });
     } catch (error) {
-      preferencesLogger.error('Failed to save preferences', { 
-        error: error instanceof Error ? error.message : String(error) 
+      preferencesLogger.error('Failed to save preferences', {
+        error: error instanceof Error ? error.message : String(error)
       });
     }
   }
@@ -112,13 +113,13 @@ class PreferencesStore {
   }
 
   setShortcuts(shortcuts: Partial<CapturePreferences['shortcuts']>): void {
-    this.set({ 
-      shortcuts: { ...this.preferences.shortcuts, ...shortcuts } 
+    this.set({
+      shortcuts: { ...this.preferences.shortcuts, ...shortcuts }
     });
   }
 
   reset(): CapturePreferences {
-    this.preferences = { 
+    this.preferences = {
       ...DEFAULT_PREFERENCES,
       outputFolder: this.getDefaultOutputFolder(),
     };

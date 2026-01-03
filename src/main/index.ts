@@ -5,16 +5,18 @@
  * @module main/index
  */
 
-import { app, BrowserWindow, ipcMain, dialog, Notification } from 'electron';
+import { app, BrowserWindow, ipcMain, dialog, Notification, clipboard, nativeImage, shell } from 'electron';
+import * as fs from 'fs'; // Ensure fs is available for saving buffers
+
+
+
 import * as path from 'path';
 import { logger, captureLogger, exportLogger, LogLevel } from '../shared/logger';
 import {
   CaptureRequest,
   CaptureMode,
-  IPC_CHANNELS,
-  CaptureErrorCode,
-  DEFAULT_PREFERENCES,
 } from '../shared/types';
+import { IPC_CHANNELS } from '../shared/constants';
 import {
   capture,
   getScreenSources,
@@ -332,6 +334,60 @@ async function initialize(): Promise<void> {
     event.sender.send(IPC_CHANNELS.HISTORY_RESULT, history);
   });
 
+  // Editor: Copy Image
+  ipcMain.on(IPC_CHANNELS.EDITOR_COPY, async (event, data: string) => {
+    if (!data) return;
+    try {
+      let image;
+      if (data.startsWith('data:')) {
+        image = nativeImage.createFromDataURL(data);
+      } else {
+        image = nativeImage.createFromPath(data);
+      }
+      clipboard.writeImage(image);
+    } catch (error) {
+      console.error('Copy failed:', error);
+    }
+  });
+
+  // Editor: Save As
+  ipcMain.on(IPC_CHANNELS.EDITOR_SAVE, async (event, data: string) => {
+    if (!data) return;
+    try {
+      let defaultPath = 'capture.png';
+      let buffer: Buffer | null = null;
+
+      if (data.startsWith('data:')) {
+        const image = nativeImage.createFromDataURL(data);
+        buffer = image.toPNG();
+      } else {
+        defaultPath = data;
+      }
+
+      const { canceled, filePath: destPath } = await dialog.showSaveDialog({
+        defaultPath: defaultPath,
+        filters: [{ name: 'Images', extensions: ['png', 'jpg', 'jpeg'] }]
+      });
+
+      if (!canceled && destPath) {
+        if (buffer) {
+          await fs.promises.writeFile(destPath, buffer);
+        } else {
+          await fs.promises.copyFile(data, destPath);
+        }
+      }
+    } catch (error) {
+      console.error('Save failed:', error);
+    }
+  });
+
+  // Editor: Reveal in Finder
+  ipcMain.on(IPC_CHANNELS.EDITOR_REVEAL, (event, filePath: string) => {
+    if (filePath) {
+      shell.showItemInFolder(filePath);
+    }
+  });
+
   // Initial scan in background
   setTimeout(() => {
     const prefs = getPreferencesStore();
@@ -339,9 +395,10 @@ async function initialize(): Promise<void> {
   }, 1000);
 
   // Show startup notification
+  const modifier = process.platform === 'darwin' ? 'Cmd' : 'Ctrl';
   showNotification(
     'Grab Ready',
-    'Running in background.\nPress Cmd+Shift+1 for Full Screen Capture.'
+    `Running in background.\nPress ${modifier}+Shift+1 for Full Screen Capture.`
   );
 }
 
