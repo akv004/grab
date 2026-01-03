@@ -29,11 +29,11 @@ function createTrayIcon(): Electron.NativeImage {
 
   const possiblePaths = [
     // If running from dist/main/index.js -> ../../assets
-    path.join(__dirname, '..', '..', 'assets', 'iconTemplate.png'),
+    path.join(__dirname, '..', '..', 'assets', 'icon.png'),
     // If running from src/main/index.ts (ts-node) -> ../../../assets
-    path.join(__dirname, '..', '..', '..', 'assets', 'iconTemplate.png'),
+    path.join(__dirname, '..', '..', '..', 'assets', 'icon.png'),
     // Absolute path fallback for dev
-    path.join(process.cwd(), 'assets', 'iconTemplate.png'),
+    path.join(process.cwd(), 'assets', 'icon.png'),
   ];
 
   if (process.platform !== 'darwin') {
