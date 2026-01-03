@@ -8,33 +8,35 @@
 import { app, BrowserWindow, ipcMain, dialog, Notification } from 'electron';
 import * as path from 'path';
 import { logger, captureLogger, exportLogger, LogLevel } from '../shared/logger';
-import { 
-  CaptureRequest, 
+import {
+  CaptureRequest,
   CaptureMode,
   IPC_CHANNELS,
   CaptureErrorCode,
   DEFAULT_PREFERENCES,
 } from '../shared/types';
-import { 
-  capture, 
-  getScreenSources, 
+import {
+  capture,
+  getScreenSources,
   getWindowSources,
   createCaptureError,
 } from './capture';
 import { exportCapture } from './export';
 import { getPreferencesStore } from './preferences';
 import { createTray, destroyTray, TrayActions } from './tray';
-import { 
-  registerShortcuts, 
-  unregisterAllShortcuts, 
+import {
+  registerShortcuts,
+  unregisterAllShortcuts,
   setupShortcutLifecycle,
   ShortcutActions,
 } from './shortcuts';
+import { getHistoryStore } from './history';
 
 // Keep a global reference of windows
 let settingsWindow: BrowserWindow | null = null;
 let regionOverlayWindow: BrowserWindow | null = null;
 let windowPickerWindow: BrowserWindow | null = null;
+let lastCapturedPath: string = '';
 
 // Development mode flag
 const isDev = process.env.NODE_ENV === 'development';
@@ -49,14 +51,57 @@ function showNotification(title: string, body: string): void {
 }
 
 /**
+ * Open the editor window with the captured image
+ */
+async function openEditorWindow(filePath: string): Promise<void> {
+  if (settingsWindow && !settingsWindow.isDestroyed()) {
+    settingsWindow.close();
+  }
+
+  // Reuse existing window or create new one
+  if (!windowPickerWindow || windowPickerWindow.isDestroyed()) {
+    windowPickerWindow = new BrowserWindow({
+      width: 1200,
+      height: 800,
+      title: 'Grab Editor',
+      webPreferences: {
+        nodeIntegration: true,
+        contextIsolation: false,
+      },
+    });
+
+    // Load the renderer HTML
+    // Handle dev vs prod paths
+    const htmlPath = isDev
+      ? path.join(__dirname, '..', '..', 'src', 'renderer', 'index.html')
+      : path.join(__dirname, '..', 'renderer', 'index.html');
+
+    await windowPickerWindow.loadFile(htmlPath);
+
+    windowPickerWindow.on('closed', () => {
+      windowPickerWindow = null;
+    });
+  } else {
+    windowPickerWindow.show();
+    windowPickerWindow.focus();
+  }
+
+  // Send file path to renderer
+  // Wait a bit for window to load if it was just created
+  setTimeout(() => {
+    windowPickerWindow?.webContents.send(IPC_CHANNELS.SHOW_CAPTURE, filePath);
+  }, 500);
+}
+
+/**
  * Perform a capture and export
  */
 async function performCapture(request: CaptureRequest): Promise<void> {
   const prefs = getPreferencesStore();
   const preferences = prefs.get();
-  
+
   captureLogger.info('Performing capture', { mode: request.mode });
-  
+
   try {
     // Merge request with default preferences
     const fullRequest: CaptureRequest = {
@@ -64,32 +109,47 @@ async function performCapture(request: CaptureRequest): Promise<void> {
       copyToClipboard: request.copyToClipboard ?? preferences.copyToClipboard,
       saveToDisk: request.saveToDisk ?? preferences.saveToDisk,
     };
-    
+
     // Capture
     const { image, metadata } = await capture(fullRequest);
-    
+
     // Export
     const exportResult = await exportCapture(image, metadata, {
       saveToDisk: fullRequest.saveToDisk ?? true,
       copyToClipboard: fullRequest.copyToClipboard ?? true,
       outputFolder: preferences.outputFolder,
     });
-    
-    // Show success notification
-    let message = '';
+
+    // Open Editor Window instead of just notification
     if (exportResult.filePath) {
-      message += `Saved to ${path.basename(exportResult.filePath)}`;
+      lastCapturedPath = exportResult.filePath;
+
+      // Add to history
+      getHistoryStore().add(exportResult.filePath);
+
+      if (preferences.openEditorAfterCapture) {
+        await openEditorWindow(exportResult.filePath);
+      } else {
+        // Show notification with action to open (if supported) or just info
+        // For MVP, just show text, user can click tray to open logic
+        showNotification(
+          'Capture Complete',
+          `Saved to ${path.basename(exportResult.filePath)}\nClick 'Open Editor' in menu to view.`
+        );
+      }
+
+      // Still show notification if just copied or if desired
+      let message = `Captured to ${path.basename(exportResult.filePath)}`;
+      if (exportResult.copiedToClipboard) {
+        message += ' and clipboard';
+      }
     }
-    if (exportResult.copiedToClipboard) {
-      message += message ? ' and copied to clipboard' : 'Copied to clipboard';
-    }
-    showNotification('Capture Complete', message);
-    
-    captureLogger.info('Capture and export complete', { 
+
+    captureLogger.info('Capture and export complete', {
       filePath: exportResult.filePath,
       copiedToClipboard: exportResult.copiedToClipboard,
     });
-    
+
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : String(error);
     captureLogger.error('Capture failed', { error: errorMsg });
@@ -114,13 +174,13 @@ async function handleCaptureRegion(): Promise<void> {
   // For MVP, inform user and capture full screen as fallback
   // TODO: Implement region selection overlay (TASK-0007 step 3)
   captureLogger.info('Region capture requested - using full screen for MVP');
-  
+
   // Show notification that region selection is coming
   showNotification(
-    'Region Capture', 
+    'Region Capture',
     'Region selection will be available in the next update. Capturing full screen instead.'
   );
-  
+
   await performCapture({ mode: 'full-screen' });
 }
 
@@ -130,24 +190,24 @@ async function handleCaptureRegion(): Promise<void> {
  */
 async function handleCaptureWindow(): Promise<void> {
   captureLogger.info('Window capture requested');
-  
+
   try {
     const sources = await getWindowSources();
-    
+
     if (sources.length === 0) {
       showNotification('No Windows', 'No capturable windows found');
       return;
     }
-    
+
     // For MVP, capture the first available window
     // TODO: Implement window picker UI (TASK-0007 step 2)
     const firstWindow = sources[0];
-    
-    await performCapture({ 
-      mode: 'window', 
+
+    await performCapture({
+      mode: 'window',
       windowId: firstWindow.id,
     });
-    
+
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : String(error);
     captureLogger.error('Window capture failed', { error: errorMsg });
@@ -161,12 +221,12 @@ async function handleCaptureWindow(): Promise<void> {
  */
 function handleOpenSettings(): void {
   captureLogger.info('Settings requested');
-  
+
   // For MVP, show a simple dialog
   // TODO: Implement full settings window (TASK-0006)
   const prefs = getPreferencesStore();
   const preferences = prefs.get();
-  
+
   dialog.showMessageBox({
     type: 'info',
     title: 'Grab Settings',
@@ -195,51 +255,94 @@ function handleOpenSettings(): void {
  */
 async function initialize(): Promise<void> {
   captureLogger.info('Initializing Grab application');
-  
+
   // Set log level based on environment
   if (isDev) {
     logger.setLevel(LogLevel.DEBUG);
   }
-  
+
   // Initialize preferences
   const prefs = getPreferencesStore();
   const preferences = prefs.get();
   captureLogger.info('Preferences loaded', { outputFolder: preferences.outputFolder });
-  
+
   // Setup tray actions
   const trayActions: TrayActions = {
     onCaptureFullScreen: handleCaptureFullScreen,
     onCaptureRegion: handleCaptureRegion,
     onCaptureWindow: handleCaptureWindow,
     onOpenSettings: handleOpenSettings,
+    onOpenEditor: () => {
+      captureLogger.info('Opening editor manually');
+      // We need the last captured file or just open the window empty/with placeholder
+      // For now, we'll open it. If we have a last capture in memory, we could pass it.
+      // Or we just open the window and let it check for state.
+
+      // Let's rely on the module variable currentFilePath if we had one (we need to track it)
+      // For MVP, just open the window.
+
+      // We'll create a simple function to just open
+      // Try to get latest from history if lastCapturedPath is empty
+      let targetPath = lastCapturedPath;
+      if (!targetPath) {
+        const latest = getHistoryStore().getLatest();
+        if (latest) {
+          targetPath = latest.filePath;
+        }
+      }
+
+      openEditorWindow(targetPath);
+    }
   };
-  
+
   // Create system tray
   createTray(trayActions);
-  
+
   // Setup shortcut actions
   const shortcutActions: ShortcutActions = {
     onCaptureFullScreen: handleCaptureFullScreen,
     onCaptureRegion: handleCaptureRegion,
     onCaptureWindow: handleCaptureWindow,
   };
-  
+
   // Register global shortcuts
   setupShortcutLifecycle();
   const shortcutResult = registerShortcuts(shortcutActions, preferences.shortcuts);
-  
+
   if (!shortcutResult.success) {
-    captureLogger.warn('Some shortcuts failed to register', { 
-      failures: shortcutResult.failures 
+    captureLogger.warn('Some shortcuts failed to register', {
+      failures: shortcutResult.failures
     });
   }
-  
+
   // Hide dock icon on macOS (we're a menu bar app)
   if (process.platform === 'darwin') {
     app.dock?.hide();
   }
-  
+
   captureLogger.info('Grab application initialized');
+
+  // Handle history requests
+  ipcMain.on(IPC_CHANNELS.HISTORY_GET, (event) => {
+    // Refresh/Scan before returning to ensure it's up to date
+    const prefs = getPreferencesStore();
+    getHistoryStore().scanDirectory(prefs.getOutputFolder());
+
+    const history = getHistoryStore().getAll();
+    event.sender.send(IPC_CHANNELS.HISTORY_RESULT, history);
+  });
+
+  // Initial scan in background
+  setTimeout(() => {
+    const prefs = getPreferencesStore();
+    getHistoryStore().scanDirectory(prefs.getOutputFolder());
+  }, 1000);
+
+  // Show startup notification
+  showNotification(
+    'Grab Ready',
+    'Running in background.\nPress Cmd+Shift+1 for Full Screen Capture.'
+  );
 }
 
 /**
@@ -247,9 +350,9 @@ async function initialize(): Promise<void> {
  */
 app.whenReady().then(async () => {
   captureLogger.info('Electron app ready');
-  
+
   await initialize();
-  
+
   // Re-create tray on activate (macOS)
   app.on('activate', () => {
     captureLogger.debug('App activated');
@@ -278,14 +381,14 @@ app.on('will-quit', () => {
  * Handle uncaught exceptions
  */
 process.on('uncaughtException', (error) => {
-  captureLogger.error('Uncaught exception', { 
+  captureLogger.error('Uncaught exception', {
     error: error.message,
     stack: error.stack,
   });
 });
 
 process.on('unhandledRejection', (reason) => {
-  captureLogger.error('Unhandled rejection', { 
+  captureLogger.error('Unhandled rejection', {
     reason: reason instanceof Error ? reason.message : String(reason),
   });
 });

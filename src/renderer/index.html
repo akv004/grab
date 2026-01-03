@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="UTF-8">
+  <title>Grab Editor</title>
+  <link rel="stylesheet" href="styles.css">
+  <meta http-equiv="Content-Security-Policy" content="script-src 'self' 'unsafe-inline'; img-src 'self' file: data:;">
+</head>
+
+<body>
+  <div class="toolbar">
+    <div class="actions">
+      <button id="save-btn" class="btn primary">
+        <span>Save</span>
+      </button>
+      <button id="copy-btn" class="btn">
+        <span>Copy</span>
+      </button>
+    </div>
+    <div class="spacer"></div>
+    <div class="window-controls">
+      <button id="close-btn" class="btn icon-only">✕</button>
+    </div>
+  </div>
+
+  <div class="main-container">
+    <div class="sidebar">
+      <div class="sidebar-header">Recent</div>
+      <div id="history-list" class="history-list">
+        <!-- History items will be injected here -->
+      </div>
+    </div>
+    <div class="canvas-container">
+      <div class="placeholder">
+        Waiting for capture...
+      </div>
+      <img id="preview-image" class="preview-hidden">
+    </div>
+  </div>
+
+  <script>var exports = {};</script>
+  <script src="../../dist/renderer/renderer.js"></script>
+</body>
+
+</html>

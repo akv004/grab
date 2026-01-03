@@ -4,7 +4,7 @@
   "description": "A lightweight, developer-friendly tool for capturing, annotating, and exporting on-screen visuals for documentation, debugging, and knowledge sharing.",
   "main": "dist/main/index.js",
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && cp src/renderer/*.html dist/renderer/ && cp src/renderer/*.css dist/renderer/",
     "start": "npm run build && electron .",
     "dev": "tsc && electron .",
     "test": "jest",

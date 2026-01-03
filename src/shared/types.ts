@@ -80,6 +80,7 @@ export interface CapturePreferences {
     region: string;
     window: string;
   };
+  openEditorAfterCapture?: boolean;
 }
 
 /**
@@ -98,6 +99,7 @@ export const DEFAULT_PREFERENCES: CapturePreferences = {
     region: 'CommandOrControl+Shift+2',
     window: 'CommandOrControl+Shift+3',
   },
+  openEditorAfterCapture: false,
 };
 
 /**
@@ -109,21 +111,26 @@ export const IPC_CHANNELS = {
   CAPTURE_RESULT: 'capture:result',
   CAPTURE_ERROR: 'capture:error',
   CAPTURE_CANCEL: 'capture:cancel',
-  
+  SHOW_CAPTURE: 'capture:show', // Added based on instruction
+
+  // History
+  HISTORY_GET: 'history:get',
+  HISTORY_RESULT: 'history:result',
+
   // Source enumeration
   GET_SOURCES: 'sources:get',
   SOURCES_RESULT: 'sources:result',
-  
+
   // Region selection
   REGION_SELECT_START: 'region:select:start',
   REGION_SELECT_DONE: 'region:select:done',
   REGION_SELECT_CANCEL: 'region:select:cancel',
-  
+
   // Preferences
   PREFERENCES_GET: 'preferences:get',
   PREFERENCES_SET: 'preferences:set',
   PREFERENCES_RESULT: 'preferences:result',
-  
+
   // Notifications
   NOTIFY_SUCCESS: 'notify:success',
   NOTIFY_ERROR: 'notify:error',

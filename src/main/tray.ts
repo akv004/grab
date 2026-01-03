@@ -12,6 +12,7 @@ export interface TrayActions {
   onCaptureFullScreen: () => void;
   onCaptureRegion: () => void;
   onCaptureWindow: () => void;
+  onOpenEditor: () => void;
   onOpenSettings: () => void;
 }
 
@@ -22,27 +23,43 @@ let tray: Tray | null = null;
  * For MVP, we create a simple icon programmatically
  */
 function createTrayIcon(): Electron.NativeImage {
-  // Create a simple 16x16 icon with a camera symbol
-  // In production, this would load from assets/icon.png
-  // For MVP, we create a basic programmatic icon
-  
-  // Try to load icon from assets directory first
-  const iconPath = process.platform === 'darwin' 
-    ? path.join(__dirname, '..', '..', 'assets', 'iconTemplate.png')
-    : path.join(__dirname, '..', '..', 'assets', 'icon.png');
-  
-  try {
-    const icon = nativeImage.createFromPath(iconPath);
-    if (!icon.isEmpty()) {
-      return icon;
-    }
-  } catch {
-    // Fall through to create empty icon
+  // Try to load icon from assets directory
+  // We need to handle both dev (src/main/...) and prod (dist/main/...) paths
+  // The 'assets' folder is in the project root
+
+  const possiblePaths = [
+    // If running from dist/main/index.js -> ../../assets
+    path.join(__dirname, '..', '..', 'assets', 'iconTemplate.png'),
+    // If running from src/main/index.ts (ts-node) -> ../../../assets
+    path.join(__dirname, '..', '..', '..', 'assets', 'iconTemplate.png'),
+    // Absolute path fallback for dev
+    path.join(process.cwd(), 'assets', 'iconTemplate.png'),
+  ];
+
+  if (process.platform !== 'darwin') {
+    possiblePaths.push(path.join(__dirname, '..', '..', 'assets', 'icon.png'));
   }
-  
+
+  for (const iconPath of possiblePaths) {
+    captureLogger.debug(`Looking for tray icon at: ${iconPath}`);
+    try {
+      const icon = nativeImage.createFromPath(iconPath);
+      if (!icon.isEmpty()) {
+        captureLogger.info(`Found tray icon at: ${iconPath}`);
+
+        // Resize for macOS menu bar (usually 16x16 or 22x22 points)
+        if (process.platform === 'darwin') {
+          return icon.resize({ width: 16, height: 16 });
+        }
+        return icon;
+      }
+    } catch (e) {
+      // Ignore
+    }
+  }
+
   // If icon file not found, create an empty icon
-  // This will show as a small dot or default icon depending on OS
-  captureLogger.warn('Tray icon not found, using default', { iconPath });
+  captureLogger.warn('Tray icon not found in any expected location');
   return nativeImage.createEmpty();
 }
 
@@ -79,6 +96,13 @@ function buildContextMenu(actions: TrayActions): Electron.Menu {
     },
     { type: 'separator' },
     {
+      label: 'Open Editor',
+      click: () => {
+        captureLogger.info('Menu action: Open Editor');
+        actions.onOpenEditor();
+      },
+    },
+    {
       label: 'Settings...',
       click: () => {
         captureLogger.info('Menu action: Open Settings');
@@ -106,19 +130,19 @@ export function createTray(actions: TrayActions): Tray {
     captureLogger.warn('Tray already exists, destroying and recreating');
     tray.destroy();
   }
-  
+
   captureLogger.info('Creating system tray');
-  
+
   const icon = createTrayIcon();
   tray = new Tray(icon);
-  
+
   // Set tooltip
   tray.setToolTip('Grab - Screen Capture');
-  
+
   // Set context menu
   const contextMenu = buildContextMenu(actions);
   tray.setContextMenu(contextMenu);
-  
+
   // On macOS, clicking the tray icon shows the menu
   // On Windows/Linux, we might want different behavior
   if (process.platform === 'win32') {
@@ -126,7 +150,7 @@ export function createTray(actions: TrayActions): Tray {
       tray?.popUpContextMenu();
     });
   }
-  
+
   captureLogger.info('System tray created successfully');
   return tray;
 }
@@ -139,7 +163,7 @@ export function updateTrayMenu(actions: TrayActions): void {
     captureLogger.warn('Cannot update tray menu: tray not created');
     return;
   }
-  
+
   const contextMenu = buildContextMenu(actions);
   tray.setContextMenu(contextMenu);
   captureLogger.debug('Tray menu updated');
