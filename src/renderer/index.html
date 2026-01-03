@@ -9,33 +9,66 @@
 </head>
 
 <body>
-  <div class="toolbar">
-    <div class="actions">
-      <button id="save-btn" class="btn primary">
-        <span>Save</span>
-      </button>
-      <button id="copy-btn" class="btn">
-        <span>Copy</span>
-      </button>
-    </div>
-    <div class="spacer"></div>
-    <div class="window-controls">
-      <button id="close-btn" class="btn icon-only">✕</button>
-    </div>
-  </div>
+  <div class="window-drag-region"></div>
 
   <div class="main-container">
+    <!-- Left: History Sidebar -->
     <div class="sidebar">
       <div class="sidebar-header">Recent</div>
       <div id="history-list" class="history-list">
         <!-- History items will be injected here -->
       </div>
     </div>
-    <div class="canvas-container">
+
+    <!-- Center: Stage -->
+    <div class="canvas-container" id="editor-stage">
       <div class="placeholder">
-        Waiting for capture...
+        <div class="placeholder-icon">📷</div>
+        <div class="placeholder-text">Press <kbd>⌘⇧1</kbd> to Capture</div>
       </div>
       <img id="preview-image" class="preview-hidden">
+
+      <!-- Floating Toolbar (Top-Center) -->
+      <div id="context-toolbar" class="floating-toolbar" style="display: none;">
+        <button class="tool-btn" title="Crop (C)" id="tool-crop">✂️</button>
+        <button class="tool-btn" title="Focus (F)" id="tool-focus">⭕</button>
+        <button class="tool-btn" title="Text (T)" id="tool-text">T</button>
+        <button class="tool-btn" title="Blur (B)" id="tool-blur">💧</button>
+        <div class="divider"></div>
+        <button class="tool-btn" title="Undo (Cmd+Z)" id="tool-undo">↩️</button>
+        <button class="tool-btn" title="More" id="tool-more">⋯</button>
+      </div>
+    </div>
+
+    <!-- Right: Export Panel -->
+    <div class="export-panel">
+      <div class="export-header">Export</div>
+
+      <button id="copy-btn" class="action-btn primary">
+        <span class="icon">📋</span>
+        <span class="label">Copy Image</span>
+      </button>
+
+      <button id="save-btn" class="action-btn">
+        <span class="icon">💾</span>
+        <span class="label">Save As...</span>
+      </button>
+
+      <div class="divider-horizontal"></div>
+
+      <button id="reveal-btn" class="link-btn">
+        <span class="icon">📁</span> Reveal in Finder
+      </button>
+
+      <button id="path-btn" class="link-btn">
+        <span class="icon">🔗</span> Copy Path
+      </button>
+
+      <div class="spacer"></div>
+
+      <button id="close-btn" class="link-btn danger">
+        Close Editor
+      </button>
     </div>
   </div>
 

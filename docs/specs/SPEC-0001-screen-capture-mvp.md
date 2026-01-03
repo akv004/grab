@@ -1,5 +1,5 @@
 # SPEC-0001: Screen Capture MVP
-- **Status**: Draft
+- **Status**: In Progress
 - **Owner**: TBD
 - **Target Release**: TBD
 - **Created**: 2026-01-02
@@ -28,11 +28,11 @@ Users need a lightweight tool to capture on-screen visuals quickly, annotate the
 
 ## 6. Requirements
 ### Functional Requirements
-1. FR-1: Capture full screen.
-2. FR-2: Capture a selectable region with drag handles.
-3. FR-3: Capture a chosen application window.
-4. FR-4: Provide basic annotations (arrow, rectangle, text).
-5. FR-5: Export to PNG/JPEG and copy to clipboard.
+1. FR-1: Capture full screen. [DONE]
+2. FR-2: Capture a selectable region with drag handles. [PENDING - Fallback implemented]
+3. FR-3: Capture a chosen application window. [PENDING - Fallback implemented]
+4. FR-4: Provide basic annotations (arrow, rectangle, text). [MOVED to SPEC-0004]
+5. FR-5: Export to PNG/JPEG and copy to clipboard. [DONE]
 
 ### Non-Functional Requirements
 - Performance: Capture and export within 1s for 1080p screens on target hardware.
@@ -82,9 +82,10 @@ Feature flag per capture mode; staged enablement; fallback to clipboard-only exp
 - Default export folder path?
 
 ## 17. Acceptance Criteria
-- [ ] Full screen, region, and window capture work on target OS list.
-- [ ] Annotations render on exported images.
-- [ ] Clipboard copy and file save succeed for supported formats.
+- [x] Full screen capture works on target OS.
+- [ ] Region and Window capture (Defer to MVP-1.5/Updates).
+- [ ] Annotations (Moved to SPEC-0004).
+- [x] Clipboard copy and file save succeed for supported formats.
 
 ## 18. Change Log
 - 2026-01-02: Draft created.

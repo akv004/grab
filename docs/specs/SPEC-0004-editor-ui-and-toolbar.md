@@ -25,15 +25,16 @@ Current editor is just a window. Users lack immediate tools to modify capture ("
 ## 5. Requirements
 
 ### 5.1 Context Toolbar (Floating)
-Position: Top-center or Top-right overlay on the canvas.
-Tools (MVP):
-1.  **Selection/Move**: Default tool.
-2.  **Crop**: ✂️ Trim image.
-3.  **Box/Rectangle**: 🟥 Draw bounding boxes (red default).
-4.  **Blur**: 🔒 Obscure sensitive info (pixelate/blur).
-5.  **Undo**: ↩️ Revert last action.
+Position: Top-Center overlay on the canvas (Floating, appears on hover).
+Tools:
+1.  **Crop (C)**: Standard crop.
+2.  **Focus (F)**: **(Star Feature)** Spotlights selection, dims/blurs background.
+3.  **Text (T)**: Simple bold text overlay.
+4.  **Blur (B)**: Pixelate sensitive info.
+5.  **Undo (⌘Z)**: Revert last action.
+6.  **More (...)**: Hidden menu for less used items.
 
-**Future Items (Post-MVP):** Highlights, Pen, Text.
+**Key Difference**: No permanent tool palette. Tools appear where the user's focus is.
 
 ### 5.2 Empty State
 When `lastCapturedPath` is null/empty:

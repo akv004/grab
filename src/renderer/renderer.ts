@@ -4,15 +4,22 @@
 
 import { ipcRenderer } from 'electron';
 import { IPC_CHANNELS } from '../shared/types';
+import { Editor } from './editor';
 
 // Elements
-const previewImage = document.getElementById('preview-image') as HTMLImageElement;
+// const previewImage = document.getElementById('preview-image') as HTMLImageElement; // Managed by Editor
 const placeholder = document.querySelector('.placeholder') as HTMLElement;
 const saveBtn = document.getElementById('save-btn');
 const copyBtn = document.getElementById('copy-btn');
 const closeBtn = document.getElementById('close-btn');
 
 let currentFilePath: string | null = null;
+let editor: Editor | null = null;
+
+// Initialize Editor
+window.addEventListener('DOMContentLoaded', () => {
+    editor = new Editor('editor-stage', 'preview-image', 'context-toolbar');
+});
 
 const historyList = document.getElementById('history-list');
 
@@ -63,10 +70,18 @@ ipcRenderer.on(IPC_CHANNELS.HISTORY_RESULT, (_event, items: HistoryItem[]) => {
 
 function updatePreview(filePath: string) {
     currentFilePath = filePath;
-    if (previewImage) {
-        previewImage.src = `file://${filePath}?t=${Date.now()}`;
-        previewImage.classList.remove('preview-hidden');
+
+    if (editor) {
+        editor.loadImage(`file://${filePath}?t=${Date.now()}`);
+    } else {
+        // Fallback if editor not ready (though DOMContentLoaded handles it)
+        const previewImage = document.getElementById('preview-image') as HTMLImageElement;
+        if (previewImage) {
+            previewImage.src = `file://${filePath}?t=${Date.now()}`;
+            previewImage.classList.remove('preview-hidden');
+        }
     }
+
     if (placeholder) {
         placeholder.style.display = 'none';
     }

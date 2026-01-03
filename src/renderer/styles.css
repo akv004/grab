@@ -18,74 +18,21 @@ body {
   overflow: hidden;
 }
 
-.toolbar {
-  height: 48px;
-  background-color: var(--toolbar-bg);
-  border-bottom: 1px solid var(--border-color);
-  display: flex;
-  align-items: center;
-  padding: 0 16px;
+/* Draggable header area (invisible) */
+.window-drag-region {
+  height: 24px;
+  width: 100%;
+  position: absolute;
+  top: 0;
+  left: 0;
   -webkit-app-region: drag;
-  /* Draggable toolbar */
+  z-index: 1000;
 }
 
-.actions {
-  display: flex;
-  gap: 8px;
-  -webkit-app-region: no-drag;
-}
-
-.btn {
-  background: transparent;
-  border: 1px solid var(--border-color);
-  color: var(--text-color);
-  padding: 6px 12px;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 13px;
-  transition: all 0.2s;
-}
-
-.btn:hover {
-  background-color: rgba(255, 255, 255, 0.1);
-}
-
-.btn.primary {
-  background-color: var(--accent-color);
-  border-color: var(--accent-color);
-  color: white;
-}
-
-.btn.primary:hover {
-  background-color: #0098ff;
-}
-
-.btn.icon-only {
-  padding: 6px 10px;
-  font-size: 16px;
-  border: none;
-}
-
-.spacer {
-  flex: 1;
-}
-
-.window-controls {
-  -webkit-app-region: no-drag;
-}
-
-.window-controls {
-  -webkit-app-region: no-drag;
-}
-
-.main-container {
-  display: flex;
-  flex: 1;
-  overflow: hidden;
-}
-
+/* Sidebar (Left) */
 .sidebar {
-  width: 200px;
+  width: 180px;
+  /* Thinner */
   background-color: #252526;
   border-right: 1px solid var(--border-color);
   display: flex;
@@ -98,8 +45,57 @@ body {
   font-weight: bold;
   text-transform: uppercase;
   color: #888;
+  margin-top: 24px;
+  /* Space for drag region */
 }
 
+/* Center Stage */
+.main-container {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+  background-color: #181818;
+  background-image:
+    linear-gradient(45deg, #222 25%, transparent 25%),
+    linear-gradient(-45deg, #222 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, #222 75%),
+    linear-gradient(-45deg, transparent 75%, #222 75%);
+  background-size: 20px 20px;
+  background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+}
+
+.canvas-container {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 24px;
+  position: relative;
+  overflow: auto;
+}
+
+/* Export Panel (Right) */
+.export-panel {
+  width: 200px;
+  background-color: #252526;
+  border-left: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  padding: 16px;
+  gap: 12px;
+}
+
+.export-header {
+  font-size: 11px;
+  font-weight: bold;
+  text-transform: uppercase;
+  color: #888;
+  margin-bottom: 8px;
+  margin-top: 24px;
+  /* Space for drag region */
+}
+
+/* History Stuff */
 .history-list {
   flex: 1;
   overflow-y: auto;
@@ -138,23 +134,124 @@ body {
   color: #aaa;
 }
 
-.canvas-container {
-  flex: 1;
+/* Action Buttons */
+.action-btn {
   display: flex;
-  justify-content: center;
   align-items: center;
-  padding: 24px;
-  background-color: #181818;
-  background-image:
-    linear-gradient(45deg, #222 25%, transparent 25%),
-    linear-gradient(-45deg, #222 25%, transparent 25%),
-    linear-gradient(45deg, transparent 75%, #222 75%),
-    linear-gradient(-45deg, transparent 75%, #222 75%);
-  background-size: 20px 20px;
-  background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
-  overflow: auto;
+  gap: 12px;
+  padding: 10px 12px;
+  background: var(--bg-color);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  color: #eee;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: left;
 }
 
+.action-btn:hover {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: #555;
+}
+
+.action-btn.primary {
+  background: var(--accent-color);
+  border-color: var(--accent-color);
+  color: white;
+}
+
+.action-btn.primary:hover {
+  background: #0098ff;
+}
+
+.link-btn {
+  background: transparent;
+  border: none;
+  color: #aaa;
+  cursor: pointer;
+  font-size: 13px;
+  text-align: left;
+  padding: 8px;
+  border-radius: 4px;
+  display: flex;
+  gap: 8px;
+}
+
+.link-btn:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: #ddd;
+}
+
+.link-btn.danger:hover {
+  color: #ff6b6b;
+  background: rgba(255, 107, 107, 0.1);
+}
+
+.divider-horizontal {
+  height: 1px;
+  background: var(--border-color);
+  margin: 8px 0;
+}
+
+.spacer {
+  flex: 1;
+}
+
+/* Floating Toolbar (Top Center) */
+.floating-toolbar {
+  position: absolute;
+  top: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+
+  background: rgba(30, 30, 30, 0.90);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 6px 12px;
+  display: flex;
+  gap: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  z-index: 100;
+  transition: opacity 0.2s, transform 0.2s;
+}
+
+.floating-toolbar:hover {
+  background: rgba(40, 40, 40, 0.95);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5);
+}
+
+.tool-btn {
+  background: transparent;
+  border: none;
+  color: #eee;
+  padding: 6px;
+  border-radius: 4px;
+  cursor: pointer;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+}
+
+.tool-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.tool-btn.active {
+  background: var(--accent-color);
+  color: white;
+}
+
+.divider {
+  width: 1px;
+  background: rgba(255, 255, 255, 0.2);
+  margin: 0 4px;
+}
+
+/* Image State */
 img#preview-image {
   max-width: 100%;
   max-height: 100%;
@@ -168,6 +265,31 @@ img#preview-image {
 }
 
 .placeholder {
-  color: #666;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  color: #555;
+}
+
+.placeholder-icon {
+  font-size: 48px;
+  opacity: 0.2;
+}
+
+.placeholder-text {
   font-size: 14px;
+}
+
+kbd {
+  background: rgba(255, 255, 255, 0.1);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-family: monospace;
+  font-size: 12px;
+}
+
+.editor-canvas {
+  pointer-events: auto;
+  z-index: 10;
 }

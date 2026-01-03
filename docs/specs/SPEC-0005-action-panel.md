@@ -1,4 +1,4 @@
-# SPEC-0005: Action Panel and File Operations
+# SPEC-0005: Export Panel and File Operations
 - **Status**: Draft
 - **Owner**: TBD
 - **Target Release**: MVP-2
@@ -16,14 +16,15 @@ Users need clear "Next Steps" after editing. The actions should be distinct from
 
 ## 4. Requirements
 
-### 4.1 Actions Panel
-Position: Vertical strip on the Right side of the window.
-Widgets:
-1.  **Copy**: 📋 Copy image to clipboard.
-2.  **Save/Save As**: 💾 Trigger save dialog or overwrite.
-3.  **Reveal**: 📁 "Show in Finder".
+### 4.1 Export Panel (Right-Side)
+Position: Fixed vertical strip on the Right side.
+Items:
+1.  **Copy**: 📋 Big primary button (Copy to Clipboard).
+2.  **Save As...**: 💾 Secondary action (with filename preview).
+3.  **Reveal**: 📁 "Reveal in Finder".
 4.  **Copy Path**: 🔗 Copy file path string.
-5.  **Delete**: 🗑 Move to Trash (with confirmation).
+
+*Note: No effects or resize options here. pure output.*
 
 ### 4.2 File Status
 -   Show "Saved" indicator.
