@@ -38,7 +38,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: macos-binaries
-          path: release/*.{dmg,zip}
+          path: |
+            release/*.dmg
+            release/*.zip
           retention-days: 7
       
       - name: Upload artifacts (Linux)
@@ -46,7 +48,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: linux-binaries
-          path: release/*.{AppImage,deb}
+          path: |
+            release/*.AppImage
+            release/*.deb
           retention-days: 7
       
       - name: Upload artifacts (Windows)
@@ -54,7 +58,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: windows-binaries
-          path: release/*.{exe,zip}
+          path: |
+            release/*.exe
+            release/*.zip
           retention-days: 7
   
   release:
