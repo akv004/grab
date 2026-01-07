@@ -23,7 +23,10 @@
     "electron",
     "screen-capture"
   ],
-  "author": "",
+  "author": {
+    "name": "Amit Verma",
+    "email": "akv004@gmail.com"
+  },
   "license": "MIT",
   "dependencies": {
     "uuid": "^9.0.0"
