@@ -6,6 +6,26 @@ A lightweight, developer-friendly tool for capturing, annotating, and exporting 
 - Add quick annotations like arrows, rectangles, and text.
 - Export to PNG/JPEG or copy straight to the clipboard.
 
+## Download Pre-built Binaries
+
+### For Development Builds
+Cross-platform binaries are automatically built for every commit to the `main` branch:
+
+1. Go to the [Actions tab](https://github.com/akv004/grab/actions/workflows/build.yml)
+2. Click on the latest successful workflow run
+3. Scroll down to the **Artifacts** section
+4. Download the binary for your platform:
+   - **macOS**: `macos-binaries` (contains .dmg and .zip)
+   - **Linux**: `linux-binaries` (contains .AppImage and .deb)
+   - **Windows**: `windows-binaries` (contains .exe and .zip)
+
+**Note**: Artifacts are retained for 7 days.
+
+### For Release Builds
+When a version tag (e.g., `v1.0.0`) is pushed:
+1. Go to the [Releases page](https://github.com/akv004/grab/releases)
+2. Download the binary for your platform from the latest release
+
 ## Documentation
 - Start with [`docs/README.md`](docs/README.md) for the documentation index.
 - See [`docs/GETTING_STARTED.md`](docs/GETTING_STARTED.md) for the spec-based workflow used in this repo.
