@@ -42,10 +42,17 @@ jobs:
       - name: Build binaries
         run: npm run dist
       
-      - name: List built files
+      - name: List built files (Unix)
+        if: runner.os != 'Windows'
         run: |
           echo "Built files in release directory:"
           ls -lh release/ || echo "No release directory found"
+      
+      - name: List built files (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          echo "Built files in release directory:"
+          if (Test-Path release) { Get-ChildItem release } else { echo "No release directory found" }
       
       - name: Upload artifacts (macOS)
         if: matrix.os == 'macos-latest'
