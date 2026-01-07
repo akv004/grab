@@ -46,7 +46,7 @@
     "directories": {
       "output": "release"
     },
-    "publish": "never",
+    "publish": null,
     "mac": {
       "target": [
         "dmg",
