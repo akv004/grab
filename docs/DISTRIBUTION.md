@@ -201,10 +201,18 @@ A: The "latest" development release is continuously updated with each main branc
 A: The "Latest Development Build" is automatically updated with each main branch commit and contains the newest features but may be unstable. Versioned releases (e.g., v1.0.0) are stable, tested releases intended for production use.
 
 **Q: How do I download artifacts programmatically?**  
-A: For GitHub Releases, use direct download URLs or the GitHub API. For Artifacts, use the `gh` CLI tool:
+A: For GitHub Releases, use the GitHub CLI (`gh`) which handles the file discovery automatically:
 ```bash
-# Download from GitHub Releases (public)
-curl -L -o grab-macos.dmg https://github.com/akv004/grab/releases/download/latest/grab-1.0.0.dmg
+# Download from latest development build (public, no authentication)
+gh release download latest --repo akv004/grab --pattern "*.dmg"    # macOS
+gh release download latest --repo akv004/grab --pattern "*.AppImage"  # Linux
+gh release download latest --repo akv004/grab --pattern "*.exe"    # Windows
+
+# Or download all files from latest
+gh release download latest --repo akv004/grab
+
+# Download from a specific versioned release
+gh release download v1.0.0 --repo akv004/grab
 
 # Download from GitHub Actions Artifacts (requires authentication)
 gh run download <run-id> --name macos-binaries

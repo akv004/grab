@@ -186,6 +186,8 @@ jobs:
             artifacts/windows-binaries/*
           draft: false
           prerelease: true
+          # make_latest: false prevents this development build from being marked as the "Latest" release
+          # This ensures versioned stable releases (v1.0.0, etc.) remain the default "latest" for end users
           make_latest: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
