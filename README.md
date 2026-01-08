@@ -8,25 +8,34 @@ A lightweight, developer-friendly tool for capturing, annotating, and exporting 
 
 ## Download Pre-built Binaries
 
-**Best Practice:** This repository follows industry-standard practices by keeping built binaries out of git. Binaries are distributed through GitHub Actions and Releases. [Learn more about our distribution strategy →](docs/DISTRIBUTION.md)
+**Best Practice:** This repository follows industry-standard practices by keeping built binaries out of git. Binaries are distributed through GitHub Releases for easy public access. [Learn more about our distribution strategy →](docs/DISTRIBUTION.md)
 
-### For Development Builds (Latest from main branch)
-Cross-platform binaries are automatically built for every commit to the `main` branch:
+### Quick Download (Recommended for End Users)
+
+**Latest Development Build** (most recent features, updated automatically):
+1. Go to the [Releases page](https://github.com/akv004/grab/releases)
+2. Find the **"Latest Development Build"** release (marked as pre-release)
+3. Download the binary for your platform from the **Assets** section:
+   - **macOS**: Download `.dmg` (recommended) or `.zip`
+   - **Linux**: Download `.AppImage` (portable) or `.deb` (package)
+   - **Windows**: Download `.exe` (installer, recommended) or `.zip` (portable)
+
+**Stable Releases** (recommended for production use):
+1. Go to the [Releases page](https://github.com/akv004/grab/releases)
+2. Find a versioned release (e.g., `v1.0.0`)
+3. Download the binary for your platform from the **Assets** section
+
+### For Developers and Contributors
+
+**Access Build Artifacts from CI:**
+If you need to access specific build artifacts from the CI pipeline:
 
 1. Go to the [Actions tab](https://github.com/akv004/grab/actions/workflows/build.yml)
-2. Click on the latest successful workflow run with a green checkmark
+2. Click on the desired workflow run
 3. Scroll down to the **Artifacts** section
-4. Download the binary for your platform:
-   - **macOS**: `macos-binaries` (contains .dmg installer and .zip archive)
-   - **Linux**: `linux-binaries` (contains .AppImage portable and .deb package)
-   - **Windows**: `windows-binaries` (contains .exe installer and .zip portable)
+4. Download the artifact for your platform
 
-**Note**: Development build artifacts are retained for 90 days.
-
-### For Stable Releases
-When a version tag (e.g., `v1.0.0`) is pushed:
-1. Go to the [Releases page](https://github.com/akv004/grab/releases)
-2. Download the binary for your platform from the latest release
+**Note**: Requires GitHub authentication. Artifacts are retained for 90 days.
 
 ### Platform-Specific Distribution Formats
 

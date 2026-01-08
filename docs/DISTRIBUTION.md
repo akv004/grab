@@ -5,8 +5,10 @@ This document explains the binary distribution strategy for the Grab application
 ## Summary
 
 **We DO NOT commit built binaries to the git repository.** Instead, we use:
-1. **GitHub Actions Artifacts** for development builds (90-day retention)
-2. **GitHub Releases** for stable, versioned releases (permanent)
+1. **GitHub Releases** for both development builds (from main branch) and stable releases (from version tags)
+2. **GitHub Actions Artifacts** as a backup for contributors/developers (90-day retention)
+
+This approach ensures binaries are publicly accessible without requiring GitHub authentication while avoiding repository bloat.
 
 ## Why Not Commit Binaries to Git?
 
@@ -36,32 +38,45 @@ This document explains the binary distribution strategy for the Grab application
 
 ## Our Distribution Strategy
 
-### Development Builds (main branch)
+### Public Access for End Users
 
-**Location**: GitHub Actions Artifacts  
-**Retention**: 90 days  
-**Access**: Actions tab → Workflow run → Artifacts section
+**Development Builds (Latest from main branch)**
+
+**Primary Location**: GitHub Releases (special "latest" pre-release)  
+**Fallback Location**: GitHub Actions Artifacts (for contributors)  
+**Retention**: Permanent (overwrites previous "latest" release)  
+**Access**: No GitHub authentication required
 
 **Advantages:**
+- ✅ Publicly accessible without GitHub account
 - ✅ Available immediately after every commit
-- ✅ Automatically built by CI/CD
-- ✅ Verified to match source code
+- ✅ Automatically built and verified by CI/CD
 - ✅ No repository bloat
-- ✅ 90-day retention for recent development
+- ✅ Always points to the latest development build
+- ✅ Easy discovery on Releases page
 
-**How to Download:**
+**How to Download (For End Users):**
+```
+1. Visit: https://github.com/akv004/grab/releases
+2. Find "Latest Development Build" (marked as pre-release)
+3. Download from "Assets" section
+```
+
+**How to Download (For Contributors - Artifacts):**
 ```
 1. Visit: https://github.com/akv004/grab/actions/workflows/build.yml
 2. Click on latest successful run (green checkmark)
 3. Scroll to "Artifacts" section
-4. Download for your platform
+4. Download for your platform (requires GitHub authentication)
 ```
+
+**Note**: The "latest" development release is automatically updated with each push to the main branch, providing a stable download URL that always points to the most recent build.
 
 ### Stable Releases (tagged versions)
 
 **Location**: GitHub Releases  
 **Retention**: Permanent  
-**Access**: Releases page
+**Access**: Releases page (no authentication required)
 
 **Advantages:**
 - ✅ Permanent storage
@@ -69,11 +84,12 @@ This document explains the binary distribution strategy for the Grab application
 - ✅ Release notes included
 - ✅ Easy discovery
 - ✅ Direct download links
+- ✅ Publicly accessible
 
 **How to Download:**
 ```
 1. Visit: https://github.com/akv004/grab/releases
-2. Find the desired version
+2. Find the desired version (e.g., v1.0.0)
 3. Download from "Assets" section
 ```
 
@@ -156,8 +172,9 @@ Our current workflow (`build.yml`) handles:
 
 1. **Build**: Compiles for all platforms (macOS, Linux, Windows)
 2. **Test**: Ensures builds complete successfully
-3. **Artifact Upload**: Stores builds in GitHub Actions (90 days)
-4. **Release**: Attaches binaries to GitHub Releases (for tags)
+3. **Artifact Upload**: Stores builds in GitHub Actions (90 days) as a fallback for contributors
+4. **Development Release**: Updates the "latest" pre-release on GitHub Releases (for main branch pushes)
+5. **Stable Release**: Creates versioned releases on GitHub Releases (for version tags)
 
 ### Adjusting Retention Period
 
@@ -174,15 +191,22 @@ The artifact retention can be adjusted in `.github/workflows/build.yml`:
 
 ## FAQ
 
-**Q: Why 90 days instead of 7 days?**  
-A: 90 days provides a better balance between storage and accessibility. Users have more time to download development builds.
+**Q: Why publish development builds to GitHub Releases instead of just using Artifacts?**  
+A: GitHub Actions Artifacts require authentication to download, making them inaccessible to end users who don't have GitHub accounts. Publishing to Releases provides public access without authentication while maintaining all other benefits.
 
 **Q: Can I download old development builds?**  
-A: Only builds from the last 90 days are available. For older versions, use tagged releases.
+A: The "latest" development release is continuously updated with each main branch commit. For older specific builds, use GitHub Actions Artifacts (90-day retention) or create versioned releases with tags.
+
+**Q: What's the difference between the "Latest Development Build" and versioned releases?**  
+A: The "Latest Development Build" is automatically updated with each main branch commit and contains the newest features but may be unstable. Versioned releases (e.g., v1.0.0) are stable, tested releases intended for production use.
 
 **Q: How do I download artifacts programmatically?**  
-A: Use the GitHub API or the `gh` CLI tool:
+A: For GitHub Releases, use direct download URLs or the GitHub API. For Artifacts, use the `gh` CLI tool:
 ```bash
+# Download from GitHub Releases (public)
+curl -L -o grab-macos.dmg https://github.com/akv004/grab/releases/download/latest/grab-1.0.0.dmg
+
+# Download from GitHub Actions Artifacts (requires authentication)
 gh run download <run-id> --name macos-binaries
 ```
 
@@ -190,7 +214,7 @@ gh run download <run-id> --name macos-binaries
 A: Committing to `dist/` still causes repository bloat. It's better to use GitHub's built-in artifact and release features.
 
 **Q: What about users who don't have GitHub accounts?**  
-A: Development builds require a GitHub account to download. For public access, use tagged releases on the Releases page (no account required).
+A: With our updated strategy, both development builds ("Latest Development Build" pre-release) and stable releases are available on the Releases page without requiring a GitHub account. GitHub Actions Artifacts still require authentication but are primarily for contributors/developers.
 
 ## References
 
