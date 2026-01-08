@@ -120,6 +120,78 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "📦 **Download artifacts from the Actions tab above (90-day retention)**" >> $GITHUB_STEP_SUMMARY
   
+  summary:
+    needs: build
+    runs-on: ubuntu-latest
+    if: always() && needs.build.result != 'cancelled'
+    
+    permissions:
+      contents: read
+    
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+      
+      - name: Create build summary table
+        run: |
+          echo "## 📦 Build Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Platform | Format | File | Size |" >> $GITHUB_STEP_SUMMARY
+          echo "|----------|--------|------|------|" >> $GITHUB_STEP_SUMMARY
+          
+          # macOS binaries
+          if [ -d "artifacts/macos-binaries" ]; then
+            for file in artifacts/macos-binaries/*; do
+              if [ -f "$file" ]; then
+                filename=$(basename "$file")
+                size=$(du -h "$file" | cut -f1)
+                ext="${filename##*.}"
+                echo "| 🍎 macOS | \`.$ext\` | $filename | $size |" >> $GITHUB_STEP_SUMMARY
+              fi
+            done
+          fi
+          
+          # Linux binaries
+          if [ -d "artifacts/linux-binaries" ]; then
+            for file in artifacts/linux-binaries/*; do
+              if [ -f "$file" ]; then
+                filename=$(basename "$file")
+                size=$(du -h "$file" | cut -f1)
+                if [[ "$filename" == *.AppImage ]]; then
+                  ext="AppImage"
+                else
+                  ext="${filename##*.}"
+                fi
+                echo "| 🐧 Linux | \`.$ext\` | $filename | $size |" >> $GITHUB_STEP_SUMMARY
+              fi
+            done
+          fi
+          
+          # Windows binaries
+          if [ -d "artifacts/windows-binaries" ]; then
+            for file in artifacts/windows-binaries/*; do
+              if [ -f "$file" ]; then
+                filename=$(basename "$file")
+                size=$(du -h "$file" | cut -f1)
+                ext="${filename##*.}"
+                echo "| 🪟 Windows | \`.$ext\` | $filename | $size |" >> $GITHUB_STEP_SUMMARY
+              fi
+            done
+          fi
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📥 How to Download" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "1. Scroll down to the **Artifacts** section below" >> $GITHUB_STEP_SUMMARY
+          echo "2. Click on your platform to download:" >> $GITHUB_STEP_SUMMARY
+          echo "   - \`macos-binaries\` for macOS" >> $GITHUB_STEP_SUMMARY
+          echo "   - \`linux-binaries\` for Linux" >> $GITHUB_STEP_SUMMARY
+          echo "   - \`windows-binaries\` for Windows" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Note:** Artifacts are retained for 90 days." >> $GITHUB_STEP_SUMMARY
+
   release:
     needs: build
     runs-on: ubuntu-latest

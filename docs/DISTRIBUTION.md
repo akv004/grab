@@ -90,6 +90,9 @@ This document explains the binary distribution strategy for the Grab application
   - Manual extraction required
   - For advanced users or automation
 
+**Note on macOS Security:**
+The macOS binaries are built with ad-hoc code signing to prevent "damaged app" errors from Gatekeeper. This allows the app to run on Apple Silicon (M1/M2/M3) Macs without requiring paid Apple Developer certificates. For first launch, you may need to right-click → Open to bypass additional Gatekeeper checks.
+
 ### Linux
 - **`.AppImage`** (Portable)
   - Universal format, works on most distributions
