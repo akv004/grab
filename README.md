@@ -8,23 +8,39 @@ A lightweight, developer-friendly tool for capturing, annotating, and exporting 
 
 ## Download Pre-built Binaries
 
-### For Development Builds
+**Best Practice:** This repository follows industry-standard practices by keeping built binaries out of git. Binaries are distributed through GitHub Actions and Releases. [Learn more about our distribution strategy →](docs/DISTRIBUTION.md)
+
+### For Development Builds (Latest from main branch)
 Cross-platform binaries are automatically built for every commit to the `main` branch:
 
 1. Go to the [Actions tab](https://github.com/akv004/grab/actions/workflows/build.yml)
-2. Click on the latest successful workflow run
+2. Click on the latest successful workflow run with a green checkmark
 3. Scroll down to the **Artifacts** section
 4. Download the binary for your platform:
-   - **macOS**: `macos-binaries` (contains .dmg and .zip)
-   - **Linux**: `linux-binaries` (contains .AppImage and .deb)
-   - **Windows**: `windows-binaries` (contains .exe and .zip)
+   - **macOS**: `macos-binaries` (contains .dmg installer and .zip archive)
+   - **Linux**: `linux-binaries` (contains .AppImage portable and .deb package)
+   - **Windows**: `windows-binaries` (contains .exe installer and .zip portable)
 
-**Note**: Artifacts are retained for 7 days.
+**Note**: Development build artifacts are retained for 90 days.
 
-### For Release Builds
+### For Stable Releases
 When a version tag (e.g., `v1.0.0`) is pushed:
 1. Go to the [Releases page](https://github.com/akv004/grab/releases)
 2. Download the binary for your platform from the latest release
+
+### Platform-Specific Distribution Formats
+
+**macOS:**
+- `.dmg` - Standard macOS disk image installer
+- `.zip` - Portable archive
+
+**Linux:**
+- `.AppImage` - Universal portable format (no installation required)
+- `.deb` - Debian/Ubuntu package
+
+**Windows:**
+- `.exe` - NSIS installer (recommended)
+- `.zip` - Portable archive
 
 ## Documentation
 - Start with [`docs/README.md`](docs/README.md) for the documentation index.

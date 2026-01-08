@@ -1,10 +1,13 @@
 name: Build Cross-Platform Binaries
 
 # This workflow builds cross-platform binaries for macOS, Linux, and Windows
-# Artifacts are stored in GitHub Actions and can be downloaded from:
-# 1. The Actions tab → Select the workflow run → Scroll to "Artifacts" section
-# 2. Artifacts are retained for 7 days
-# 3. For tagged releases (v*), binaries are also attached to the GitHub Release
+# 
+# Distribution Strategy (Following Best Practices):
+# 1. Development builds: Available as GitHub Actions artifacts (90-day retention)
+#    - Go to Actions tab → Select workflow run → Download from Artifacts section
+# 2. Release builds: Attached to GitHub Releases (permanent)
+#    - Go to Releases page → Download from the latest release
+# 3. Binaries are NOT committed to git (maintains repository cleanliness)
 
 on:
   push:
@@ -62,7 +65,7 @@ jobs:
           path: |
             release/*.dmg
             release/*.zip
-          retention-days: 7
+          retention-days: 90
           if-no-files-found: error
       
       - name: Add job summary (macOS)
@@ -73,7 +76,7 @@ jobs:
           echo "Built files:" >> $GITHUB_STEP_SUMMARY
           ls -lh release/*.dmg release/*.zip 2>/dev/null | awk '{print "- " $9 " (" $5 ")"}' >> $GITHUB_STEP_SUMMARY || true
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "📦 **Download artifacts from the Actions tab above (7-day retention)**" >> $GITHUB_STEP_SUMMARY
+          echo "📦 **Download artifacts from the Actions tab above (90-day retention)**" >> $GITHUB_STEP_SUMMARY
       
       - name: Upload artifacts (Linux)
         if: matrix.os == 'ubuntu-latest'
@@ -83,7 +86,7 @@ jobs:
           path: |
             release/*.AppImage
             release/*.deb
-          retention-days: 7
+          retention-days: 90
           if-no-files-found: error
       
       - name: Add job summary (Linux)
@@ -94,7 +97,7 @@ jobs:
           echo "Built files:" >> $GITHUB_STEP_SUMMARY
           ls -lh release/*.AppImage release/*.deb 2>/dev/null | awk '{print "- " $9 " (" $5 ")"}' >> $GITHUB_STEP_SUMMARY || true
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "📦 **Download artifacts from the Actions tab above (7-day retention)**" >> $GITHUB_STEP_SUMMARY
+          echo "📦 **Download artifacts from the Actions tab above (90-day retention)**" >> $GITHUB_STEP_SUMMARY
       
       - name: Upload artifacts (Windows)
         if: matrix.os == 'windows-latest'
@@ -104,7 +107,7 @@ jobs:
           path: |
             release/*.exe
             release/*.zip
-          retention-days: 7
+          retention-days: 90
           if-no-files-found: error
       
       - name: Add job summary (Windows)
@@ -115,7 +118,7 @@ jobs:
           echo "Built files:" >> $GITHUB_STEP_SUMMARY
           Get-ChildItem release/*.exe, release/*.zip | ForEach-Object { "- $($_.Name) ($([math]::Round($_.Length / 1MB, 2)) MB)" } | Out-File -Append -Encoding utf8 $env:GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "📦 **Download artifacts from the Actions tab above (7-day retention)**" >> $GITHUB_STEP_SUMMARY
+          echo "📦 **Download artifacts from the Actions tab above (90-day retention)**" >> $GITHUB_STEP_SUMMARY
   
   release:
     needs: build
