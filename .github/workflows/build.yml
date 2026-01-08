@@ -3,11 +3,14 @@ name: Build Cross-Platform Binaries
 # This workflow builds cross-platform binaries for macOS, Linux, and Windows
 # 
 # Distribution Strategy (Following Best Practices):
-# 1. Development builds: Available as GitHub Actions artifacts (90-day retention)
-#    - Go to Actions tab → Select workflow run → Download from Artifacts section
-# 2. Release builds: Attached to GitHub Releases (permanent)
-#    - Go to Releases page → Download from the latest release
+# 1. Development builds (main branch): 
+#    - Primary: Published to "Latest Development Build" pre-release on GitHub Releases (public access, no authentication)
+#    - Backup: Available as GitHub Actions artifacts (90-day retention, requires authentication)
+# 2. Stable releases (version tags): Attached to versioned GitHub Releases (permanent, public access)
 # 3. Binaries are NOT committed to git (maintains repository cleanliness)
+# 
+# This strategy ensures end users can download binaries without GitHub authentication
+# while maintaining all best practices for binary distribution.
 
 on:
   push:
@@ -120,6 +123,76 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "📦 **Download artifacts from the Actions tab above (90-day retention)**" >> $GITHUB_STEP_SUMMARY
   
+  # Publish development builds from main branch to a public "latest" release
+  # This makes binaries accessible to end users without requiring GitHub account authentication
+  publish-development:
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    
+    permissions:
+      contents: write
+    
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+      
+      - name: Generate build timestamp
+        id: timestamp
+        run: |
+          echo "date=$(date +'%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_OUTPUT
+          echo "short_sha=${GITHUB_SHA:0:7}" >> $GITHUB_OUTPUT
+      
+      - name: Update latest development release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest
+          name: "Latest Development Build"
+          body: |
+            ## 🚀 Latest Development Build
+            
+            **⚠️ Warning**: This is an automated development build from the `main` branch.
+            These builds contain the latest features and bug fixes but may be unstable.
+            
+            **For stable releases**, please see the [Releases page](https://github.com/${{ github.repository }}/releases) for versioned releases.
+            
+            ---
+            
+            **Build Information:**
+            - **Commit**: [${{ steps.timestamp.outputs.short_sha }}](https://github.com/${{ github.repository }}/commit/${{ github.sha }})
+            - **Built**: ${{ steps.timestamp.outputs.date }}
+            - **Branch**: main
+            
+            **Download Instructions:**
+            - **macOS**: Download the `.dmg` file (recommended) or `.zip` archive
+            - **Linux**: Download the `.AppImage` (portable) or `.deb` package
+            - **Windows**: Download the `.exe` installer (recommended) or `.zip` portable
+            
+            **Installation:**
+            - macOS: Open the `.dmg` file and drag to Applications
+            - Linux (AppImage): Make executable with `chmod +x` and run
+            - Linux (deb): Install with `sudo dpkg -i filename.deb`
+            - Windows: Run the `.exe` installer
+            
+            ---
+            
+            📚 **Documentation**: [README.md](https://github.com/${{ github.repository }})
+            🐛 **Report Issues**: [Issue Tracker](https://github.com/${{ github.repository }}/issues)
+          files: |
+            artifacts/macos-binaries/*
+            artifacts/linux-binaries/*
+            artifacts/windows-binaries/*
+          draft: false
+          prerelease: true
+          # make_latest: false prevents this development build from being marked as the "Latest" release
+          # This ensures versioned stable releases (v1.0.0, etc.) remain the default "latest" for end users
+          make_latest: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  
+  # Publish stable releases from version tags
   release:
     needs: build
     runs-on: ubuntu-latest
