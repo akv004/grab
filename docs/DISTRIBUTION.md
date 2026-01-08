@@ -91,7 +91,18 @@ This document explains the binary distribution strategy for the Grab application
   - For advanced users or automation
 
 **Note on macOS Security:**
-The macOS binaries are built with ad-hoc code signing to prevent "damaged app" errors from Gatekeeper. This allows the app to run on Apple Silicon (M1/M2/M3) Macs without requiring paid Apple Developer certificates. For first launch, you may need to right-click → Open to bypass additional Gatekeeper checks.
+The macOS binaries are built with ad-hoc code signing to prevent "damaged app" errors from Gatekeeper. This allows the app to run on Apple Silicon (M1/M2/M3) Macs without requiring paid Apple Developer certificates. 
+
+**If you encounter a Gatekeeper error** ("damaged and can't be opened"):
+1. Open Terminal
+2. Run the following command to remove the quarantine attribute:
+   ```bash
+   sudo xattr -dr com.apple.quarantine "/Applications/grab.app"
+   ```
+3. Enter your password when prompted
+4. The app should now open normally
+
+Alternatively, for the first launch, you can right-click the app → Open to bypass Gatekeeper checks.
 
 ### Linux
 - **`.AppImage`** (Portable)
