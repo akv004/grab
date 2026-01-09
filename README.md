@@ -19,7 +19,7 @@
 </div>
 
 <div align="center">
-  <img src="assets/screen1.png" alt="Grab Application Icon" width="200">
+  <img src="assets/screen1.png" alt="Grab Application Icon" width="600">
   <p><em>Grab Application Icon</em></p>
 </div>
 
