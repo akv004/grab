@@ -1,10 +1,24 @@
-# grab
-A lightweight, developer-friendly tool for capturing, annotating, and exporting on-screen visuals for documentation, debugging, and knowledge sharing.
+<div align="center">
+  <img src="assets/icon.png" alt="Grab Icon" width="150" height="150">
+  
+  # grab
+  
+  A lightweight, developer-friendly tool for capturing, annotating, and exporting on-screen visuals for documentation, debugging, and knowledge sharing.
+</div>
 
 ## Overview
 - Capture full screen, application windows, or custom regions.
 - Add quick annotations like arrows, rectangles, and text.
 - Export to PNG/JPEG or copy straight to the clipboard.
+
+## Screenshots
+
+<div align="center">
+  <img src="assets/icon.png" alt="Grab Application Icon" width="200">
+  <p><em>Grab Application Icon</em></p>
+</div>
+
+<!-- Application screenshots will be added here -->
 
 ## Download Pre-built Binaries
 
