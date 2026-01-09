@@ -11,6 +11,40 @@
 - Add quick annotations like arrows, rectangles, and text.
 - Export to PNG/JPEG or copy straight to the clipboard.
 
+
+## AI (Optional): OCR + Smart Actions via Azure OpenAI
+
+Grab can optionally integrate with **Azure OpenAI** to turn captured images into useful text and notes.
+
+### What you can do
+- **OCR Image → Text** (extract text from a selected region or screenshot)
+- **Clean & Format** (fix line breaks, bullets, tables, code blocks)
+- **Translate** (OCR + translate to your chosen language)
+- **Summarize** (short summary + key points)
+- **Markdown Notes** (convert a screenshot into copy-paste markdown)
+- **Bug Report Draft** (screenshot → issue template: steps, expected/actual, environment)
+
+### Privacy & Defaults
+- AI is **OFF by default**.
+- You bring your own Azure OpenAI endpoint/key.
+- Grab only sends the **image you explicitly choose** to process.
+
+### Configuration (Environment Variables)
+Create a `.env` (or set system env vars) with:
+
+- `AZURE_OPENAI_ENDPOINT` = `https://<your-resource>.openai.azure.com`
+- `AZURE_OPENAI_API_KEY` = `<your-key>`
+- `AZURE_OPENAI_DEPLOYMENT` = `<your-model-deployment-name>`
+- `AZURE_OPENAI_API_VERSION` = `<api-version>`
+
+### Planned UI
+A simple “AI” menu / toolbar actions:
+- **Extract Text (OCR)**
+- **Translate**
+- **Summarize**
+- **Copy as Markdown**
+- **Draft Bug Report**
+
 ## Screenshots
 
 <div align="center">
