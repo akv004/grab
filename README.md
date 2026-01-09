@@ -14,7 +14,12 @@
 ## Screenshots
 
 <div align="center">
-  <img src="assets/icon.png" alt="Grab Application Icon" width="200">
+  <img src="assets/screen2.png" alt="Grab Application Icon" width="200">
+  <p><em>Grab Application Icon</em></p>
+</div>
+
+<div align="center">
+  <img src="assets/screen1.png" alt="Grab Application Icon" width="200">
   <p><em>Grab Application Icon</em></p>
 </div>
 
