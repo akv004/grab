@@ -34,6 +34,11 @@ When a version tag (e.g., `v1.0.0`) is pushed:
 - `.dmg` - Standard macOS disk image installer
 - `.zip` - Portable archive
 
+**Important for macOS users:** If you encounter a "damaged and can't be opened" error from Gatekeeper, run this command in Terminal:
+```bash
+sudo xattr -dr com.apple.quarantine "/Applications/grab.app"
+```
+
 **Linux:**
 - `.AppImage` - Universal portable format (no installation required)
 - `.deb` - Debian/Ubuntu package
