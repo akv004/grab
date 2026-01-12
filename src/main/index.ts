@@ -43,6 +43,17 @@ let lastCapturedPath: string = '';
 // Development mode flag
 const isDev = process.env.NODE_ENV === 'development';
 
+// Fix for Linux sandbox error
+// On Linux, Electron's Chrome sandbox requires special SUID configuration which needs
+// root privileges. For desktop applications, this is impractical, so we disable the sandbox.
+// Security Note: Disabling the sandbox reduces isolation between processes. However, this is
+// a common approach for Electron desktop apps on Linux. Users with properly configured SUID
+// sandbox can set GRAB_ENABLE_SANDBOX=true to keep the sandbox enabled.
+// See: https://www.electronjs.org/docs/latest/tutorial/sandbox
+if (process.platform === 'linux' && process.env.GRAB_ENABLE_SANDBOX !== 'true') {
+  app.commandLine.appendSwitch('no-sandbox');
+}
+
 /**
  * Show a notification
  */
