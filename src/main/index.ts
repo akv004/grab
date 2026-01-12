@@ -43,6 +43,12 @@ let lastCapturedPath: string = '';
 // Development mode flag
 const isDev = process.env.NODE_ENV === 'development';
 
+// Fix for Linux sandbox error
+// On Linux, disable Chrome sandbox to avoid SUID sandbox configuration issues
+if (process.platform === 'linux') {
+  app.commandLine.appendSwitch('no-sandbox');
+}
+
 /**
  * Show a notification
  */
