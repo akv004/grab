@@ -9,10 +9,9 @@ import {
   CaptureResult,
   CaptureMetadata,
   CapturePreferences,
-  DEFAULT_PREFERENCES,
-  IPC_CHANNELS,
   CaptureErrorCode,
 } from '../../src/shared/types';
+import { DEFAULT_PREFERENCES, IPC_CHANNELS } from '../../src/shared/constants';
 
 describe('DEFAULT_PREFERENCES', () => {
   it('should have all required fields', () => {

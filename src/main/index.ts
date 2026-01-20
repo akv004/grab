@@ -5,7 +5,7 @@
  * @module main/index
  */
 
-import { app, BrowserWindow, ipcMain, dialog, Notification, clipboard, nativeImage, shell } from 'electron';
+import { app, BrowserWindow, ipcMain, dialog, Notification, clipboard, nativeImage, shell, screen } from 'electron';
 import * as fs from 'fs'; // Ensure fs is available for saving buffers
 
 
@@ -33,6 +33,7 @@ import {
   ShortcutActions,
 } from './shortcuts';
 import { getHistoryStore } from './history';
+import { showRegionSelector, setupRegionSelectionIPC } from './regionOverlay';
 
 // Keep a global reference of windows
 let settingsWindow: BrowserWindow | null = null;
@@ -172,34 +173,64 @@ async function performCapture(request: CaptureRequest): Promise<void> {
 
 /**
  * Handle full screen capture
+ * Shows display picker if multiple monitors detected
  */
 async function handleCaptureFullScreen(): Promise<void> {
-  await performCapture({ mode: 'full-screen' });
+  const displays = screen.getAllDisplays();
+
+  if (displays.length > 1) {
+    // Multiple monitors - let user choose
+    const displayLabels = displays.map((d, i) => {
+      const isPrimary = d.id === screen.getPrimaryDisplay().id;
+      return `Display ${i + 1}: ${d.size.width}x${d.size.height}${isPrimary ? ' (Primary)' : ''}`;
+    });
+    displayLabels.push('All Displays (Primary Only)');
+
+    const result = await dialog.showMessageBox({
+      type: 'question',
+      title: 'Select Display',
+      message: 'Which display do you want to capture?',
+      buttons: displayLabels,
+      cancelId: displayLabels.length - 1,
+    });
+
+    if (result.response < displays.length) {
+      // Capture specific display
+      const selectedDisplay = displays[result.response];
+      await performCapture({
+        mode: 'display',
+        displayId: String(selectedDisplay.id)
+      });
+    } else {
+      // Capture primary (default behavior)
+      await performCapture({ mode: 'full-screen' });
+    }
+  } else {
+    // Single monitor - capture directly
+    await performCapture({ mode: 'full-screen' });
+  }
 }
 
 /**
  * Handle region capture
- * For MVP, we notify the user that region selection is not yet available
- * and capture full screen as a fallback
- * Full region overlay will be implemented in next iteration
+ * Shows a transparent overlay for interactive click-and-drag region selection
  */
 async function handleCaptureRegion(): Promise<void> {
-  // For MVP, inform user and capture full screen as fallback
-  // TODO: Implement region selection overlay (TASK-0007 step 3)
-  captureLogger.info('Region capture requested - using full screen for MVP');
+  captureLogger.info('Region capture requested - showing selector overlay');
 
-  // Show notification that region selection is coming
-  showNotification(
-    'Region Capture',
-    'Region selection will be available in the next update. Capturing full screen instead.'
-  );
+  const region = await showRegionSelector();
 
-  await performCapture({ mode: 'full-screen' });
+  if (region) {
+    captureLogger.info('Region selected', { region });
+    await performCapture({ mode: 'region', region });
+  } else {
+    captureLogger.info('Region selection cancelled');
+  }
 }
 
 /**
  * Handle window capture
- * For MVP, we'll show a simple dialog to select window
+ * Shows a dialog to select which window to capture
  */
 async function handleCaptureWindow(): Promise<void> {
   captureLogger.info('Window capture requested');
@@ -212,14 +243,25 @@ async function handleCaptureWindow(): Promise<void> {
       return;
     }
 
-    // For MVP, capture the first available window
-    // TODO: Implement window picker UI (TASK-0007 step 2)
-    const firstWindow = sources[0];
+    // Show window selection dialog
+    const windowNames = sources.map(s => s.name.substring(0, 50) + (s.name.length > 50 ? '...' : ''));
+    windowNames.push('Cancel');
 
-    await performCapture({
-      mode: 'window',
-      windowId: firstWindow.id,
+    const result = await dialog.showMessageBox({
+      type: 'question',
+      title: 'Select Window',
+      message: 'Which window do you want to capture?',
+      buttons: windowNames,
+      cancelId: windowNames.length - 1,
     });
+
+    if (result.response < sources.length) {
+      const selectedWindow = sources[result.response];
+      await performCapture({
+        mode: 'window',
+        windowId: selectedWindow.id,
+      });
+    }
 
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : String(error);
@@ -318,6 +360,9 @@ async function initialize(): Promise<void> {
     onCaptureWindow: handleCaptureWindow,
   };
 
+  // Setup region selection IPC handlers
+  setupRegionSelectionIPC();
+
   // Register global shortcuts
   setupShortcutLifecycle();
   const shortcutResult = registerShortcuts(shortcutActions, preferences.shortcuts);
@@ -396,6 +441,28 @@ async function initialize(): Promise<void> {
   ipcMain.on(IPC_CHANNELS.EDITOR_REVEAL, (event, filePath: string) => {
     if (filePath) {
       shell.showItemInFolder(filePath);
+    }
+  });
+
+  // Editor: Delete Screenshot
+  ipcMain.on(IPC_CHANNELS.EDITOR_DELETE, async (event, filePath: string) => {
+    if (!filePath) {
+      event.sender.send('editor:delete:result', false);
+      return;
+    }
+
+    try {
+      // Move to trash instead of permanent delete (safer)
+      await shell.trashItem(filePath);
+      captureLogger.info('Screenshot deleted (moved to trash)', { filePath });
+
+      // Remove from history
+      getHistoryStore().remove(filePath);
+
+      event.sender.send('editor:delete:result', true);
+    } catch (error) {
+      captureLogger.error('Failed to delete screenshot', { filePath, error });
+      event.sender.send('editor:delete:result', false);
     }
   });
 

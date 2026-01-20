@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Region Selection</title>
+  <link rel="stylesheet" href="overlay.css">
+  <meta http-equiv="Content-Security-Policy" content="script-src 'self' 'unsafe-inline'; img-src 'self' file: data:;">
+</head>
+<body>
+  <!-- Canvas for drawing selection -->
+  <canvas id="selection-canvas"></canvas>
+  
+  <!-- Dimension tooltip -->
+  <div id="dimension-tooltip" class="dimension-tooltip">
+    <span id="dimensions">0 × 0 px</span>
+  </div>
+
+  <!-- Instructions hint -->
+  <div id="instructions" class="instructions">
+    <span class="key">Click and drag</span> to select region · <span class="key">Esc</span> to cancel
+  </div>
+
+  <script>var exports = {};</script>
+  <script src="../../dist/renderer/overlay.js"></script>
+</body>
+</html>

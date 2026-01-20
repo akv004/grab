@@ -28,6 +28,9 @@ export class Editor {
     // Tool buttons
     private tools: Record<string, HTMLElement> = {};
 
+    // Track the current file path for copy/save operations
+    private currentFilePath: string | null = null;
+
     constructor(containerId: string, imageId: string, toolbarId: string) {
         this.container = document.getElementById(containerId) as HTMLElement;
         this.image = document.getElementById(imageId) as HTMLImageElement;
@@ -130,6 +133,15 @@ export class Editor {
     }
 
     public loadImage(src: string) {
+        // Track the file path (strip file:// prefix and query params if present)
+        if (src.startsWith('file://')) {
+            this.currentFilePath = src.replace('file://', '').split('?')[0];
+        } else if (src.startsWith('/')) {
+            this.currentFilePath = src.split('?')[0];
+        } else {
+            // Data URL or other - no file path
+            this.currentFilePath = null;
+        }
         this.image.src = src;
         this.image.classList.remove('preview-hidden');
     }
@@ -302,12 +314,20 @@ export class Editor {
     }
 
     public getImageDataURL(): string {
-        // We export the underlying IMAGE, not the canvas overlay (unless we are burning in annotations)
-        // For Crop/Focus, we updated the image.src.
-        // For Text/Drawing, we would need to merge them. 
-        // For MVP, crop is destructive to image.src, so returning image.src is safe.
-        // If we want to support 'Undo' properly later, we should keep history.
+        // If the image is from a file (not edited), return the file path
+        // The main process will read from the path for better quality
+        if (this.currentFilePath && !this.image.src.startsWith('data:')) {
+            return this.currentFilePath;
+        }
+        // For edited images (data URLs), return the data URL
         return this.image.src;
+    }
+
+    /**
+     * Get the current file path (for reveal in finder, etc.)
+     */
+    public getCurrentFilePath(): string | null {
+        return this.currentFilePath;
     }
 
     public clear() {
@@ -359,7 +379,7 @@ export class Editor {
                 const el = document.createElement('div');
                 el.className = 'history-item';
                 el.onclick = () => {
-                    this.loadImage(item.filePath);
+                    this.loadImage(`file://${item.filePath}?t=${Date.now()}`);
                     // Update active state
                     document.querySelectorAll('.history-item').forEach(i => i.classList.remove('active'));
                     el.classList.add('active');

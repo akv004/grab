@@ -5,8 +5,8 @@
   "main": "dist/main/index.js",
   "scripts": {
     "build": "tsc && cp src/renderer/*.html dist/renderer/ && cp src/renderer/*.css dist/renderer/",
-    "start": "npm run build && electron .",
-    "dev": "tsc && electron .",
+    "start": "npm run build && electron . --no-sandbox",
+    "dev": "tsc && electron . --no-sandbox",
     "test": "jest",
     "test:unit": "jest --testPathPattern=test/unit",
     "lint": "eslint src --ext .ts",

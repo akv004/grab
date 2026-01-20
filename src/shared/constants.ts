@@ -41,6 +41,7 @@ export const IPC_CHANNELS = {
     EDITOR_COPY: 'editor:copy',
     EDITOR_SAVE: 'editor:save',
     EDITOR_REVEAL: 'editor:reveal',
+    EDITOR_DELETE: 'editor:delete',
 } as const;
 
 /**

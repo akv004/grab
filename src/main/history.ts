@@ -116,6 +116,21 @@ class HistoryStore {
         return all.length > 0 ? all[0] : null;
     }
 
+    /**
+     * Remove a history item by file path
+     */
+    remove(filePath: string): boolean {
+        const initialLength = this.items.length;
+        this.items = this.items.filter(item => item.filePath !== filePath);
+
+        if (this.items.length < initialLength) {
+            this.save();
+            captureLogger.info('Removed item from history', { filePath });
+            return true;
+        }
+        return false;
+    }
+
     scanFromDirectory(directoryPath: string): void {
         // Implementation for scanning a directory and adding items to history
         // This is a placeholder for the actual logic.

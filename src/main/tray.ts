@@ -19,42 +19,50 @@ export interface TrayActions {
 let tray: Tray | null = null;
 
 /**
- * Create a simple tray icon
- * For MVP, we create a simple icon programmatically
+ * Create a platform-specific tray icon
+ * - macOS: Uses template icon (16x16, black works with dark/light modes)
+ * - Linux: Uses colored icon (22x22, visible on dark panels)
+ * - Windows: Uses colored icon (16x16)
  */
 function createTrayIcon(): Electron.NativeImage {
-  // Try to load icon from assets directory
-  // We need to handle both dev (src/main/...) and prod (dist/main/...) paths
-  // The 'assets' folder is in the project root
+  // Determine icon filename based on platform
+  // Linux/Windows: use colored trayIcon.png (visible on dark panels)
+  // macOS: use icon.png (template-style works with system appearance)
+  const iconFilename = process.platform === 'darwin' ? 'icon.png' : 'trayIcon.png';
+
+  // Icon sizes per platform
+  // Linux: 24x24 to match other system tray icons
+  const iconSize = process.platform === 'darwin' ? 16 :
+    process.platform === 'linux' ? 24 : 16;
 
   const possiblePaths = [
     // If running from dist/main/index.js -> ../../assets
-    path.join(__dirname, '..', '..', 'assets', 'icon.png'),
+    path.join(__dirname, '..', '..', 'assets', iconFilename),
     // If running from src/main/index.ts (ts-node) -> ../../../assets
-    path.join(__dirname, '..', '..', '..', 'assets', 'icon.png'),
+    path.join(__dirname, '..', '..', '..', 'assets', iconFilename),
     // Absolute path fallback for dev
-    path.join(process.cwd(), 'assets', 'icon.png'),
+    path.join(process.cwd(), 'assets', iconFilename),
   ];
-
-  if (process.platform !== 'darwin') {
-    possiblePaths.push(path.join(__dirname, '..', '..', 'assets', 'icon.png'));
-  }
 
   for (const iconPath of possiblePaths) {
     captureLogger.debug(`Looking for tray icon at: ${iconPath}`);
     try {
       const icon = nativeImage.createFromPath(iconPath);
       if (!icon.isEmpty()) {
-        captureLogger.info(`Found tray icon at: ${iconPath}`);
+        captureLogger.info(`Found tray icon at: ${iconPath}, resizing to ${iconSize}x${iconSize}`);
 
-        // Resize for macOS menu bar (usually 16x16 or 22x22 points)
+        // Resize for platform-specific size
+        const resizedIcon = icon.resize({ width: iconSize, height: iconSize });
+
+        // On macOS, mark as template for proper dark/light mode handling
         if (process.platform === 'darwin') {
-          return icon.resize({ width: 16, height: 16 });
+          resizedIcon.setTemplateImage(true);
         }
-        return icon;
+
+        return resizedIcon;
       }
     } catch (e) {
-      // Ignore
+      // Ignore and try next path
     }
   }
 

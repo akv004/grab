@@ -1,0 +1,81 @@
+/**
+ * Overlay Styles for Region Selection
+ * Clean, minimal styling for smooth selection experience
+ */
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html,
+body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: transparent !important;
+}
+
+body {
+  cursor: crosshair;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* Full-screen canvas for selection drawing */
+#selection-canvas {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1;
+}
+
+/* Dimension tooltip - clean floating style */
+.dimension-tooltip {
+  position: fixed;
+  z-index: 100;
+  padding: 5px 10px;
+  background: rgba(0, 122, 204, 0.95);
+  border-radius: 4px;
+  color: #fff;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Mono', 'Menlo', 'Consolas', monospace;
+  font-size: 12px;
+  font-weight: 600;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.1s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  white-space: nowrap;
+}
+
+.dimension-tooltip.visible {
+  opacity: 1;
+}
+
+/* Instructions at bottom */
+.instructions {
+  position: fixed;
+  bottom: 40px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 100;
+  padding: 12px 24px;
+  background: rgba(0, 0, 0, 0.85);
+  border-radius: 8px;
+  color: rgba(255, 255, 255, 0.95);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-size: 14px;
+  pointer-events: none;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+  transition: opacity 0.2s ease;
+}
+
+.instructions .key {
+  background: rgba(255, 255, 255, 0.2);
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-weight: 600;
+}

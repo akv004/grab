@@ -104,6 +104,37 @@ mapAction('copy-btn', (btn) => {
     }
 });
 
+// Keyboard shortcut: Ctrl+C / Cmd+C to copy the currently displayed image
+window.addEventListener('keydown', (e) => {
+    // Only handle Ctrl+C / Cmd+C when not in an input field
+    if ((e.ctrlKey || e.metaKey) && e.key === 'c') {
+        // Don't override if user has text selected
+        const selection = window.getSelection();
+        if (selection && selection.toString().length > 0) {
+            return; // Let default copy behavior happen for text
+        }
+
+        e.preventDefault();
+        if (editor) {
+            const data = editor.getImageDataURL();
+            ipcRenderer.send(IPC_CHANNELS.EDITOR_COPY, data);
+
+            // Visual feedback on the copy button
+            const copyBtn = document.getElementById('copy-btn');
+            if (copyBtn) {
+                const label = copyBtn.querySelector('.label');
+                if (label) {
+                    const originalText = label.textContent;
+                    label.textContent = 'Copied ✓';
+                    setTimeout(() => {
+                        label.textContent = originalText;
+                    }, 1500);
+                }
+            }
+        }
+    }
+});
+
 mapAction('save-btn', (btn) => {
     if (editor) {
         const data = editor.getImageDataURL();
@@ -126,6 +157,26 @@ mapAction('path-btn', (btn) => {
         const originalText = btn.innerHTML;
         btn.innerHTML = '<span class="icon">✅</span> Copied';
         setTimeout(() => btn.innerHTML = originalText, 2000);
+    }
+});
+
+mapAction('delete-btn', () => {
+    if (editor) {
+        const filePath = editor.getCurrentFilePath();
+        if (filePath) {
+            // Show confirmation dialog
+            const confirmed = confirm(`Are you sure you want to delete this screenshot?\n\n${filePath}`);
+            if (confirmed) {
+                ipcRenderer.send(IPC_CHANNELS.EDITOR_DELETE, filePath);
+            }
+        }
+    }
+});
+
+// Listen for delete result to refresh history
+ipcRenderer.on('editor:delete:result', (_event, success: boolean) => {
+    if (success) {
+        loadHistory(); // Refresh the history list
     }
 });
 
