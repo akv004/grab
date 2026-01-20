@@ -41,6 +41,12 @@ ipcRenderer.on(IPC_CHANNELS.HISTORY_RESULT, (_event, items: HistoryItem[]) => {
     }
 });
 
+// Handle history refresh signal (sent after captures from editor)
+ipcRenderer.on('history:refresh', () => {
+    console.log('History refresh requested');
+    loadHistory();
+});
+
 function updatePreview(filePath: string) {
     currentFilePath = filePath;
 
@@ -104,9 +110,28 @@ mapAction('copy-btn', (btn) => {
     }
 });
 
+// Capture buttons - trigger captures from editor
+mapAction('capture-fullscreen-btn', () => {
+    ipcRenderer.send(IPC_CHANNELS.EDITOR_CAPTURE_FULLSCREEN);
+});
+
+mapAction('capture-region-btn', () => {
+    ipcRenderer.send(IPC_CHANNELS.EDITOR_CAPTURE_REGION);
+});
+
+mapAction('capture-window-btn', () => {
+    ipcRenderer.send(IPC_CHANNELS.EDITOR_CAPTURE_WINDOW);
+});
+
 // Keyboard shortcut: Ctrl+C / Cmd+C to copy the currently displayed image
+// Keyboard shortcut: Delete key to delete the currently selected screenshot
 window.addEventListener('keydown', (e) => {
-    // Only handle Ctrl+C / Cmd+C when not in an input field
+    // Don't handle keyboard shortcuts when in an input field
+    if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+        return;
+    }
+
+    // Ctrl+C / Cmd+C - Copy image
     if ((e.ctrlKey || e.metaKey) && e.key === 'c') {
         // Don't override if user has text selected
         const selection = window.getSelection();
@@ -129,6 +154,21 @@ window.addEventListener('keydown', (e) => {
                     setTimeout(() => {
                         label.textContent = originalText;
                     }, 1500);
+                }
+            }
+        }
+    }
+
+    // Delete key - Delete selected screenshot
+    if (e.key === 'Delete' || e.key === 'Backspace') {
+        if (editor) {
+            const filePath = editor.getCurrentFilePath();
+            if (filePath) {
+                e.preventDefault();
+                // Show confirmation dialog
+                const confirmed = confirm(`Are you sure you want to delete this screenshot?\n\n${filePath}`);
+                if (confirmed) {
+                    ipcRenderer.send(IPC_CHANNELS.EDITOR_DELETE, filePath);
                 }
             }
         }

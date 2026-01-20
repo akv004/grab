@@ -81,6 +81,8 @@ export interface CapturePreferences {
     window: string;
   };
   openEditorAfterCapture?: boolean;
+  hideEditorDuringCapture?: boolean;
+  showNotifications?: boolean;
 }
 
 // DEFAULT_PREFERENCES moved to constants.ts

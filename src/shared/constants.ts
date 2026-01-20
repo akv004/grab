@@ -42,6 +42,9 @@ export const IPC_CHANNELS = {
     EDITOR_SAVE: 'editor:save',
     EDITOR_REVEAL: 'editor:reveal',
     EDITOR_DELETE: 'editor:delete',
+    EDITOR_CAPTURE_FULLSCREEN: 'editor:capture:fullscreen',
+    EDITOR_CAPTURE_REGION: 'editor:capture:region',
+    EDITOR_CAPTURE_WINDOW: 'editor:capture:window',
 } as const;
 
 /**
@@ -59,6 +62,8 @@ export const DEFAULT_PREFERENCES: CapturePreferences = {
         window: 'CommandOrControl+Shift+3',
     },
     openEditorAfterCapture: false,
+    hideEditorDuringCapture: false,
+    showNotifications: true,
 };
 
 // CaptureErrorCode is in types.ts

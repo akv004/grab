@@ -12,23 +12,49 @@ import { captureLogger } from '../shared/logger';
 
 let overlayWindow: BrowserWindow | null = null;
 let selectionResolver: ((region: RegionBounds | null) => void) | null = null;
+let currentDisplayId: string | null = null; // Track which display the overlay is on
 
 // Development mode flag
 const isDev = process.env.NODE_ENV === 'development';
 
 /**
- * Get the primary display bounds (for single monitor support initially)
- * Using primary display to avoid coordinate complexity
+ * Get the bounds of the entire virtual screen (all displays combined)
+ * This allows the overlay to span all monitors like Snagit
  */
-function getPrimaryDisplayBounds(): { x: number; y: number; width: number; height: number; scaleFactor: number } {
-    const primaryDisplay = screen.getPrimaryDisplay();
-    return {
-        x: primaryDisplay.bounds.x,
-        y: primaryDisplay.bounds.y,
-        width: primaryDisplay.bounds.width,
-        height: primaryDisplay.bounds.height,
-        scaleFactor: primaryDisplay.scaleFactor,
+function getVirtualScreenBounds(): { x: number; y: number; width: number; height: number } {
+    const displays = screen.getAllDisplays();
+
+    // Calculate the bounding rectangle that contains all displays
+    let minX = Infinity, minY = Infinity;
+    let maxX = -Infinity, maxY = -Infinity;
+
+    for (const display of displays) {
+        minX = Math.min(minX, display.bounds.x);
+        minY = Math.min(minY, display.bounds.y);
+        maxX = Math.max(maxX, display.bounds.x + display.bounds.width);
+        maxY = Math.max(maxY, display.bounds.y + display.bounds.height);
+    }
+
+    const bounds = {
+        x: minX,
+        y: minY,
+        width: maxX - minX,
+        height: maxY - minY,
     };
+
+    captureLogger.info('Virtual screen bounds calculated', {
+        displays: displays.map(d => ({ id: d.id, bounds: d.bounds })),
+        virtualBounds: bounds,
+    });
+
+    return bounds;
+}
+
+/**
+ * Find which display contains a given point
+ */
+function getDisplayAtPoint(x: number, y: number): Electron.Display {
+    return screen.getDisplayNearestPoint({ x, y });
 }
 
 /**
@@ -44,9 +70,9 @@ export async function showRegionSelector(): Promise<RegionBounds | null> {
         overlayWindow = null;
     }
 
-    // Get primary display bounds
-    const bounds = getPrimaryDisplayBounds();
-    captureLogger.debug('Display bounds for overlay', bounds);
+    // Get virtual screen bounds (spans all displays)
+    const bounds = getVirtualScreenBounds();
+    captureLogger.debug('Virtual screen bounds for overlay', bounds);
 
     return new Promise((resolve) => {
         selectionResolver = resolve;
@@ -81,6 +107,20 @@ export async function showRegionSelector(): Promise<RegionBounds | null> {
         // Prevent any flickering by setting background color
         overlayWindow.setBackgroundColor('#00000000');
 
+        // Explicitly set bounds to ensure correct positioning on Linux
+        // Some window managers may not respect initial x,y coordinates
+        overlayWindow.setBounds({
+            x: bounds.x,
+            y: bounds.y,
+            width: bounds.width,
+            height: bounds.height,
+        });
+
+        captureLogger.debug('Overlay window bounds set', {
+            requested: { x: bounds.x, y: bounds.y, width: bounds.width, height: bounds.height },
+            actual: overlayWindow.getBounds(),
+        });
+
         // Load the overlay HTML
         const htmlPath = isDev
             ? path.join(__dirname, '..', '..', 'src', 'renderer', 'overlay.html')
@@ -95,7 +135,7 @@ export async function showRegionSelector(): Promise<RegionBounds | null> {
                 y: bounds.y,
                 width: bounds.width,
                 height: bounds.height,
-                scaleFactor: bounds.scaleFactor,
+                scaleFactor: 1, // Default scale factor for virtual screen
             });
         });
 
@@ -124,16 +164,55 @@ export function closeRegionSelector(): void {
 }
 
 /**
+ * Get the display ID that was used for the most recent region selection
+ */
+export function getCurrentDisplayId(): string | null {
+    return currentDisplayId;
+}
+
+/**
  * Setup IPC handlers for region selection events
  * Should be called once during app initialization
  */
 export function setupRegionSelectionIPC(): void {
     // Handle region selection complete
     ipcMain.on(IPC_CHANNELS.REGION_SELECT_DONE, (_event, region: RegionBounds) => {
-        captureLogger.info('Region selected', { region });
+        // The region has absolute screen coordinates from the virtual screen overlay
+        // We need to find which display it's in and convert to display-relative coordinates
+
+        // Get the virtual screen bounds (used for the overlay positioning)
+        const virtualBounds = getVirtualScreenBounds();
+
+        // The selection coordinates are relative to the overlay window, which starts at virtualBounds.x/y
+        // Convert to absolute screen coordinates
+        const absX = virtualBounds.x + region.x;
+        const absY = virtualBounds.y + region.y;
+
+        // Find which display contains the center of the selection
+        const centerX = absX + region.width / 2;
+        const centerY = absY + region.height / 2;
+        const display = getDisplayAtPoint(centerX, centerY);
+
+        // Store the display ID
+        currentDisplayId = String(display.id);
+
+        // Convert to display-relative coordinates for cropping
+        const relativeRegion: RegionBounds = {
+            x: absX - display.bounds.x,
+            y: absY - display.bounds.y,
+            width: region.width,
+            height: region.height,
+        };
+
+        captureLogger.info('Region selected', {
+            originalRegion: region,
+            absCoords: { x: absX, y: absY },
+            display: { id: display.id, bounds: display.bounds },
+            relativeRegion,
+        });
 
         if (selectionResolver) {
-            selectionResolver(region);
+            selectionResolver(relativeRegion);
             selectionResolver = null;
         }
 

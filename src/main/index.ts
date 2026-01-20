@@ -15,6 +15,7 @@ import { logger, captureLogger, exportLogger, LogLevel } from '../shared/logger'
 import {
   CaptureRequest,
   CaptureMode,
+  CapturePreferences,
 } from '../shared/types';
 import { IPC_CHANNELS } from '../shared/constants';
 import {
@@ -33,7 +34,7 @@ import {
   ShortcutActions,
 } from './shortcuts';
 import { getHistoryStore } from './history';
-import { showRegionSelector, setupRegionSelectionIPC } from './regionOverlay';
+import { showRegionSelector, setupRegionSelectionIPC, getCurrentDisplayId } from './regionOverlay';
 
 // Keep a global reference of windows
 let settingsWindow: BrowserWindow | null = null;
@@ -108,6 +109,39 @@ async function openEditorWindow(filePath: string): Promise<void> {
 }
 
 /**
+ * Open the settings window
+ */
+async function openSettingsWindow(): Promise<void> {
+  // Reuse existing window or create new one
+  if (!settingsWindow || settingsWindow.isDestroyed()) {
+    settingsWindow = new BrowserWindow({
+      width: 500,
+      height: 600,
+      title: 'Settings',
+      resizable: false,
+      webPreferences: {
+        nodeIntegration: true,
+        contextIsolation: false,
+      },
+    });
+
+    // Load the settings HTML
+    const htmlPath = isDev
+      ? path.join(__dirname, '..', '..', 'src', 'renderer', 'settings.html')
+      : path.join(__dirname, '..', 'renderer', 'settings.html');
+
+    await settingsWindow.loadFile(htmlPath);
+
+    settingsWindow.on('closed', () => {
+      settingsWindow = null;
+    });
+  } else {
+    settingsWindow.show();
+    settingsWindow.focus();
+  }
+}
+
+/**
  * Perform a capture and export
  */
 async function performCapture(request: CaptureRequest): Promise<void> {
@@ -140,6 +174,11 @@ async function performCapture(request: CaptureRequest): Promise<void> {
 
       // Add to history
       getHistoryStore().add(exportResult.filePath);
+
+      // Notify Editor window to refresh history if it's open
+      if (windowPickerWindow && !windowPickerWindow.isDestroyed()) {
+        windowPickerWindow.webContents.send('history:refresh');
+      }
 
       if (preferences.openEditorAfterCapture) {
         await openEditorWindow(exportResult.filePath);
@@ -221,8 +260,10 @@ async function handleCaptureRegion(): Promise<void> {
   const region = await showRegionSelector();
 
   if (region) {
-    captureLogger.info('Region selected', { region });
-    await performCapture({ mode: 'region', region });
+    // Get the display ID from the overlay (the display where the selection was made)
+    const displayId = getCurrentDisplayId();
+    captureLogger.info('Region selected', { region, displayId });
+    await performCapture({ mode: 'region', region, displayId: displayId || undefined });
   } else {
     captureLogger.info('Region selection cancelled');
   }
@@ -272,37 +313,10 @@ async function handleCaptureWindow(): Promise<void> {
 
 /**
  * Open settings window
- * For MVP, just show dialog about settings
  */
 function handleOpenSettings(): void {
   captureLogger.info('Settings requested');
-
-  // For MVP, show a simple dialog
-  // TODO: Implement full settings window (TASK-0006)
-  const prefs = getPreferencesStore();
-  const preferences = prefs.get();
-
-  dialog.showMessageBox({
-    type: 'info',
-    title: 'Grab Settings',
-    message: 'Settings',
-    detail: `Output folder: ${preferences.outputFolder}\n\nFull settings window coming soon!`,
-    buttons: ['OK', 'Change Output Folder'],
-  }).then((result) => {
-    if (result.response === 1) {
-      // Change output folder
-      dialog.showOpenDialog({
-        title: 'Select Output Folder',
-        properties: ['openDirectory', 'createDirectory'],
-        defaultPath: preferences.outputFolder,
-      }).then((folderResult) => {
-        if (!folderResult.canceled && folderResult.filePaths.length > 0) {
-          prefs.setOutputFolder(folderResult.filePaths[0]);
-          showNotification('Settings Updated', `Output folder: ${folderResult.filePaths[0]}`);
-        }
-      });
-    }
-  });
+  openSettingsWindow();
 }
 
 /**
@@ -390,6 +404,33 @@ async function initialize(): Promise<void> {
     event.sender.send(IPC_CHANNELS.HISTORY_RESULT, history);
   });
 
+  // Preferences: Get
+  ipcMain.on(IPC_CHANNELS.PREFERENCES_GET, (event) => {
+    const prefs = getPreferencesStore();
+    event.sender.send(IPC_CHANNELS.PREFERENCES_RESULT, prefs.get());
+  });
+
+  // Preferences: Set
+  ipcMain.on(IPC_CHANNELS.PREFERENCES_SET, (_event, newPrefs: CapturePreferences) => {
+    const prefs = getPreferencesStore();
+    prefs.set(newPrefs);
+    captureLogger.info('Preferences updated', { newPrefs });
+  });
+
+  // Settings: Browse for folder
+  ipcMain.on('settings:browse-folder', async (event) => {
+    const prefs = getPreferencesStore();
+    const result = await dialog.showOpenDialog({
+      title: 'Select Output Folder',
+      properties: ['openDirectory', 'createDirectory'],
+      defaultPath: prefs.getOutputFolder(),
+    });
+
+    if (!result.canceled && result.filePaths.length > 0) {
+      event.sender.send('settings:folder-selected', result.filePaths[0]);
+    }
+  });
+
   // Editor: Copy Image
   ipcMain.on(IPC_CHANNELS.EDITOR_COPY, async (event, data: string) => {
     if (!data) return;
@@ -463,6 +504,74 @@ async function initialize(): Promise<void> {
     } catch (error) {
       captureLogger.error('Failed to delete screenshot', { filePath, error });
       event.sender.send('editor:delete:result', false);
+    }
+  });
+
+  // Editor: Capture actions (triggered from editor window)
+  // Conditionally hide/minimize editor based on user preference
+  ipcMain.on(IPC_CHANNELS.EDITOR_CAPTURE_FULLSCREEN, async () => {
+    captureLogger.info('Capture Full Screen triggered from editor');
+
+    const prefs = getPreferencesStore();
+    const hideEditor = prefs.get().hideEditorDuringCapture ?? false;
+
+    // Minimize editor if preference enabled
+    if (hideEditor && windowPickerWindow && !windowPickerWindow.isDestroyed()) {
+      windowPickerWindow.minimize();
+    }
+
+    await handleCaptureFullScreen();
+
+    // Restore and refresh history
+    if (windowPickerWindow && !windowPickerWindow.isDestroyed()) {
+      if (hideEditor) {
+        windowPickerWindow.restore();
+      }
+      windowPickerWindow.webContents.send('history:refresh');
+    }
+  });
+
+  ipcMain.on(IPC_CHANNELS.EDITOR_CAPTURE_REGION, async () => {
+    captureLogger.info('Capture Region triggered from editor');
+
+    const prefs = getPreferencesStore();
+    const hideEditor = prefs.get().hideEditorDuringCapture ?? false;
+
+    // Hide editor if preference enabled (for region, hiding is recommended)
+    if (hideEditor && windowPickerWindow && !windowPickerWindow.isDestroyed()) {
+      windowPickerWindow.hide();
+    }
+
+    await handleCaptureRegion();
+
+    // Show and refresh history
+    if (windowPickerWindow && !windowPickerWindow.isDestroyed()) {
+      if (hideEditor) {
+        windowPickerWindow.show();
+      }
+      windowPickerWindow.webContents.send('history:refresh');
+    }
+  });
+
+  ipcMain.on(IPC_CHANNELS.EDITOR_CAPTURE_WINDOW, async () => {
+    captureLogger.info('Capture Window triggered from editor');
+
+    const prefs = getPreferencesStore();
+    const hideEditor = prefs.get().hideEditorDuringCapture ?? false;
+
+    // Minimize editor if preference enabled
+    if (hideEditor && windowPickerWindow && !windowPickerWindow.isDestroyed()) {
+      windowPickerWindow.minimize();
+    }
+
+    await handleCaptureWindow();
+
+    // Restore and refresh history
+    if (windowPickerWindow && !windowPickerWindow.isDestroyed()) {
+      if (hideEditor) {
+        windowPickerWindow.restore();
+      }
+      windowPickerWindow.webContents.send('history:refresh');
     }
   });
 

@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Grab Settings</title>
+    <link rel="stylesheet" href="settings.css">
+</head>
+
+<body>
+    <div class="settings-container">
+        <header class="settings-header">
+            <h1>⚙️ Settings</h1>
+        </header>
+
+        <!-- Capture Section -->
+        <section class="settings-section">
+            <h2>Capture</h2>
+
+            <div class="setting-row">
+                <div class="setting-info">
+                    <label for="hideEditor">Hide editor during capture</label>
+                    <span class="setting-hint">Minimize editor when capturing from editor window</span>
+                </div>
+                <label class="toggle">
+                    <input type="checkbox" id="hideEditor">
+                    <span class="toggle-slider"></span>
+                </label>
+            </div>
+
+            <div class="setting-row">
+                <div class="setting-info">
+                    <label for="copyClipboard">Auto-copy to clipboard</label>
+                    <span class="setting-hint">Copy captures to clipboard automatically</span>
+                </div>
+                <label class="toggle">
+                    <input type="checkbox" id="copyClipboard">
+                    <span class="toggle-slider"></span>
+                </label>
+            </div>
+
+            <div class="setting-row">
+                <div class="setting-info">
+                    <label for="saveToDisk">Save to disk</label>
+                    <span class="setting-hint">Automatically save captures as files</span>
+                </div>
+                <label class="toggle">
+                    <input type="checkbox" id="saveToDisk">
+                    <span class="toggle-slider"></span>
+                </label>
+            </div>
+
+            <div class="setting-row">
+                <div class="setting-info">
+                    <label for="showNotifications">Show notifications</label>
+                    <span class="setting-hint">Display system notifications after capture</span>
+                </div>
+                <label class="toggle">
+                    <input type="checkbox" id="showNotifications">
+                    <span class="toggle-slider"></span>
+                </label>
+            </div>
+        </section>
+
+        <!-- Output Section -->
+        <section class="settings-section">
+            <h2>Output</h2>
+
+            <div class="setting-row">
+                <div class="setting-info">
+                    <label for="outputFolder">Save location</label>
+                    <span class="setting-hint" id="outputPath">/home/user/Pictures/Grab</span>
+                </div>
+                <button id="browseFolder" class="btn-secondary">Browse...</button>
+            </div>
+        </section>
+
+        <!-- Shortcuts Section -->
+        <section class="settings-section">
+            <h2>Keyboard Shortcuts</h2>
+
+            <div class="setting-row">
+                <div class="setting-info">
+                    <label>Full Screen</label>
+                </div>
+                <span class="shortcut-key">Ctrl+Shift+1</span>
+            </div>
+
+            <div class="setting-row">
+                <div class="setting-info">
+                    <label>Region</label>
+                </div>
+                <span class="shortcut-key">Ctrl+Shift+2</span>
+            </div>
+
+            <div class="setting-row">
+                <div class="setting-info">
+                    <label>Window</label>
+                </div>
+                <span class="shortcut-key">Ctrl+Shift+3</span>
+            </div>
+        </section>
+
+        <!-- Footer -->
+        <footer class="settings-footer">
+            <span class="version">Grab v1.0.0</span>
+            <div class="footer-actions">
+                <button id="closeBtn" class="btn-secondary">Close</button>
+            </div>
+        </footer>
+    </div>
+
+    <script>var exports = {};</script>
+    <script src="../../dist/renderer/settings.js"></script>
+</body>
+
+</html>

@@ -193,6 +193,29 @@ body {
   margin: 8px 0;
 }
 
+/* Capture buttons row - side by side */
+.capture-row {
+  display: flex;
+  gap: 8px;
+}
+
+.capture-row .action-btn {
+  flex: 1;
+}
+
+.action-btn.small {
+  padding: 8px;
+  font-size: 12px;
+}
+
+.action-btn.small .icon {
+  font-size: 14px;
+}
+
+.action-btn.small .label {
+  font-size: 11px;
+}
+
 .spacer {
   flex: 1;
 }

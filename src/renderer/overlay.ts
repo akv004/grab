@@ -42,14 +42,13 @@ function initCanvas(): void {
 }
 
 /**
- * Draw the overlay with dimmed background and selection rectangle
+ * Draw the selection rectangle (no overlay background - transparent)
  */
 function drawOverlay(): void {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // Draw semi-transparent dark overlay over entire screen
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    // No background overlay - completely transparent
+    // Only draw the selection when the user is dragging
 
     // If selecting, cut out the selection area
     if (isSelecting) {
@@ -189,10 +188,12 @@ function onMouseUp(e: MouseEvent): void {
         return;
     }
 
-    // Translate to screen coordinates (account for display offset)
+    // The coordinates are already relative to the overlay window which 
+    // matches the captured screen image (both start at 0,0 for the primary display).
+    // No offset translation needed - cropImage expects image-relative coordinates.
     const region: RegionBounds = {
-        x: x + displayOffsetX,
-        y: y + displayOffsetY,
+        x: x,
+        y: y,
         width: w,
         height: h,
     };
