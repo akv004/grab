@@ -15,15 +15,29 @@ export default function Editor() {
 
   // Load image when currentCapture changes
   useEffect(() => {
-    if (currentCapture) {
-      // For file paths, use the asset protocol
-      const url = currentCapture.startsWith('data:')
-        ? currentCapture
-        : `asset://localhost/${encodeURIComponent(currentCapture)}`;
-      setImageDataUrl(url);
-    } else {
-      setImageDataUrl(null);
-    }
+    const loadImage = async () => {
+      if (currentCapture) {
+        console.log('[Editor] Loading capture:', currentCapture);
+        // For file paths, use Tauri's convertFileSrc
+        if (currentCapture.startsWith('data:')) {
+          setImageDataUrl(currentCapture);
+        } else {
+          try {
+            const { convertFileSrc } = await import('@tauri-apps/api/core');
+            const url = convertFileSrc(currentCapture);
+            console.log('[Editor] Converted URL:', url);
+            setImageDataUrl(url);
+          } catch (error) {
+            console.error('[Editor] Failed to convert file src:', error);
+            // Fallback: try direct file path for development
+            setImageDataUrl(`file://${currentCapture}`);
+          }
+        }
+      } else {
+        setImageDataUrl(null);
+      }
+    };
+    loadImage();
   }, [currentCapture]);
 
   const handleCopy = async () => {

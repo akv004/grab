@@ -7,7 +7,7 @@ use crate::types::CapturePreferences;
 use std::fs;
 use std::path::PathBuf;
 use std::sync::Mutex;
-use tauri::AppHandle;
+use tauri::{AppHandle, Manager};
 
 const PREFERENCES_FILE: &str = "preferences.json";
 

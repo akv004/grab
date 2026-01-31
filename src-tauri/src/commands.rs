@@ -9,13 +9,15 @@ use crate::preferences::PreferencesStore;
 use crate::types::{
     CapturePreferences, CaptureResult, CaptureSource, HistoryItem, RegionBounds,
 };
+use base64::Engine;
 use image::RgbaImage;
 use std::fs;
 use std::path::PathBuf;
-use tauri::{AppHandle, Manager, State};
+use tauri::{AppHandle, Emitter, Manager, State};
 use tauri_plugin_clipboard_manager::ClipboardExt;
 use tauri_plugin_dialog::DialogExt;
 use tauri_plugin_notification::NotificationExt;
+use tauri_plugin_shell::ShellExt;
 
 // ============================================================================
 // Capture Commands
@@ -24,11 +26,15 @@ use tauri_plugin_notification::NotificationExt;
 /// Capture the full screen
 #[tauri::command]
 pub async fn capture_full_screen(
+    display_id: Option<String>,
     app: AppHandle,
     prefs: State<'_, PreferencesStore>,
     history: State<'_, HistoryStore>,
 ) -> Result<CaptureResult, GrabError> {
-    let (image, metadata) = capture::capture_full_screen()?;
+    let (image, metadata) = match display_id {
+        Some(id) => capture::capture_display(&id)?,
+        None => capture::capture_full_screen()?,
+    };
     let preferences = prefs.get();
 
     let result = save_and_process_capture(&app, &image, metadata, &preferences, &history).await?;
@@ -141,16 +147,25 @@ pub fn get_output_folder(prefs: State<'_, PreferencesStore>) -> String {
     prefs.get_output_folder().to_string_lossy().to_string()
 }
 
-/// Browse for a folder
+/// Browse for a folder (returns immediately, UI should handle folder selection)
 #[tauri::command]
-pub async fn browse_folder(app: AppHandle) -> Option<String> {
-    let result = app
-        .dialog()
+pub fn browse_folder(app: AppHandle) -> Result<Option<String>, GrabError> {
+    use std::sync::mpsc;
+    
+    let (tx, rx) = mpsc::channel();
+    
+    app.dialog()
         .file()
         .set_title("Select Output Folder")
-        .pick_folder();
-
-    result.map(|p| p.to_string_lossy().to_string())
+        .pick_folder(move |result| {
+            let _ = tx.send(result.map(|p| p.to_string()));
+        });
+    
+    // Wait for the result
+    match rx.recv() {
+        Ok(result) => Ok(result),
+        Err(_) => Ok(None),
+    }
 }
 
 // ============================================================================
@@ -159,46 +174,50 @@ pub async fn browse_folder(app: AppHandle) -> Option<String> {
 
 /// Save an image to a specific path
 #[tauri::command]
-pub async fn save_image(
+pub fn save_image(
     data: String,
     default_path: Option<String>,
     app: AppHandle,
 ) -> Result<Option<String>, GrabError> {
+    use std::sync::mpsc;
+    
     let default_name = default_path.unwrap_or_else(|| "capture.png".to_string());
 
-    let file_path = app
-        .dialog()
+    let (tx, rx) = mpsc::channel();
+    
+    app.dialog()
         .file()
         .set_title("Save Image")
         .set_file_name(&default_name)
         .add_filter("Images", &["png", "jpg", "jpeg"])
-        .save_file();
+        .save_file(move |result| {
+            let _ = tx.send(result);
+        });
 
-    if let Some(path) = file_path {
-        // Check if data is a file path or base64
-        if data.starts_with("data:") {
-            // Base64 data URL
-            let base64_data = data
-                .split(',')
-                .nth(1)
-                .ok_or_else(|| GrabError::InvalidRequest("Invalid data URL".to_string()))?;
+    let file_path = match rx.recv() {
+        Ok(Some(path)) => PathBuf::from(path.to_string()),
+        _ => return Ok(None),
+    };
 
-            let bytes = base64::Engine::decode(
-                &base64::engine::general_purpose::STANDARD,
-                base64_data,
-            )
+    // Check if data is a file path or base64
+    if data.starts_with("data:") {
+        // Base64 data URL
+        let base64_data = data
+            .split(',')
+            .nth(1)
+            .ok_or_else(|| GrabError::InvalidRequest("Invalid data URL".to_string()))?;
+
+        let bytes = base64::engine::general_purpose::STANDARD
+            .decode(base64_data)
             .map_err(|e| GrabError::ExportFailed(e.to_string()))?;
 
-            fs::write(&path, bytes)?;
-        } else {
-            // File path - copy the file
-            fs::copy(&data, &path)?;
-        }
-
-        Ok(Some(path.to_string_lossy().to_string()))
+        fs::write(&file_path, bytes)?;
     } else {
-        Ok(None)
+        // File path - copy the file
+        fs::copy(&data, &file_path)?;
     }
+
+    Ok(Some(file_path.to_string_lossy().to_string()))
 }
 
 /// Copy image to clipboard
@@ -212,7 +231,8 @@ pub async fn copy_to_clipboard(data: String, app: AppHandle) -> Result<(), GrabE
             .nth(1)
             .ok_or_else(|| GrabError::InvalidRequest("Invalid data URL".to_string()))?;
 
-        base64::Engine::decode(&base64::engine::general_purpose::STANDARD, base64_data)
+        base64::engine::general_purpose::STANDARD
+            .decode(base64_data)
             .map_err(|e| GrabError::ClipboardFailed(e.to_string()))?
     } else {
         // File path
@@ -226,12 +246,13 @@ pub async fn copy_to_clipboard(data: String, app: AppHandle) -> Result<(), GrabE
     let rgba = img.to_rgba8();
 
     // Write to clipboard using Tauri plugin
+    let clipboard_img = tauri::image::Image::new_owned(
+        rgba.as_raw().clone(),
+        rgba.width(),
+        rgba.height(),
+    );
     app.clipboard()
-        .write_image(&tauri_plugin_clipboard_manager::ClipboardImage {
-            rgba: rgba.as_raw().clone(),
-            width: rgba.width() as usize,
-            height: rgba.height() as usize,
-        })
+        .write_image(&clipboard_img)
         .map_err(|e| GrabError::ClipboardFailed(e.to_string()))?;
 
     Ok(())
@@ -271,65 +292,72 @@ pub async fn delete_screenshot(
 pub async fn reveal_in_folder(file_path: String, app: AppHandle) -> Result<(), GrabError> {
     app.shell()
         .open(&file_path, None)
-        .map_err(|e| GrabError::ExportFailed(e.to_string()))?;
+        .map_err(|e: tauri_plugin_shell::Error| GrabError::ExportFailed(e.to_string()))?;
     Ok(())
 }
 
 /// Export a capture (with options)
 #[tauri::command]
-pub async fn export_capture(
+pub fn export_capture(
     image_data: String,
     format: String,
     quality: Option<u8>,
     app: AppHandle,
 ) -> Result<Option<String>, GrabError> {
+    use std::sync::mpsc;
+    
     let ext = match format.as_str() {
         "jpeg" | "jpg" => "jpg",
         _ => "png",
     };
 
-    let file_path = app
-        .dialog()
+    let (tx, rx) = mpsc::channel();
+    
+    app.dialog()
         .file()
         .set_title("Export Capture")
         .set_file_name(&format!("capture.{}", ext))
         .add_filter("Images", &[ext])
-        .save_file();
+        .save_file(move |result| {
+            let _ = tx.send(result);
+        });
 
-    if let Some(path) = file_path {
-        // Decode image data
-        let bytes = if image_data.starts_with("data:") {
-            let base64_data = image_data
-                .split(',')
-                .nth(1)
-                .ok_or_else(|| GrabError::InvalidRequest("Invalid data URL".to_string()))?;
+    let file_path = match rx.recv() {
+        Ok(Some(path)) => PathBuf::from(path.to_string()),
+        _ => return Ok(None),
+    };
 
-            base64::Engine::decode(&base64::engine::general_purpose::STANDARD, base64_data)
-                .map_err(|e| GrabError::ExportFailed(e.to_string()))?
-        } else {
-            fs::read(&image_data)?
-        };
+    // Decode image data
+    let bytes = if image_data.starts_with("data:") {
+        let base64_data = image_data
+            .split(',')
+            .nth(1)
+            .ok_or_else(|| GrabError::InvalidRequest("Invalid data URL".to_string()))?;
 
-        let img = image::load_from_memory(&bytes)
-            .map_err(|e| GrabError::ExportFailed(e.to_string()))?;
-
-        // Save with appropriate format
-        match format.as_str() {
-            "jpeg" | "jpg" => {
-                let quality = quality.unwrap_or(90);
-                img.save_with_format(&path, image::ImageFormat::Jpeg)
-                    .map_err(|e| GrabError::ExportFailed(e.to_string()))?;
-            }
-            _ => {
-                img.save_with_format(&path, image::ImageFormat::Png)
-                    .map_err(|e| GrabError::ExportFailed(e.to_string()))?;
-            }
-        }
-
-        Ok(Some(path.to_string_lossy().to_string()))
+        base64::engine::general_purpose::STANDARD
+            .decode(base64_data)
+            .map_err(|e| GrabError::ExportFailed(e.to_string()))?
     } else {
-        Ok(None)
+        fs::read(&image_data)?
+    };
+
+    let img = image::load_from_memory(&bytes)
+        .map_err(|e| GrabError::ExportFailed(e.to_string()))?;
+
+    // Save with appropriate format
+    match format.as_str() {
+        "jpeg" | "jpg" => {
+            let _quality = quality.unwrap_or(90);
+            img.save_with_format(&file_path, image::ImageFormat::Jpeg)
+                .map_err(|e| GrabError::ExportFailed(e.to_string()))?;
+        }
+        _ => {
+            img.save_with_format(&file_path, image::ImageFormat::Png)
+                .map_err(|e| GrabError::ExportFailed(e.to_string()))?;
+        }
     }
+
+    Ok(Some(file_path.to_string_lossy().to_string()))
 }
 
 // ============================================================================
@@ -371,12 +399,13 @@ async fn save_and_process_capture(
 
     // Copy to clipboard if enabled
     if preferences.copy_to_clipboard {
+        let clipboard_img = tauri::image::Image::new_owned(
+            image.as_raw().clone(),
+            image.width(),
+            image.height(),
+        );
         app.clipboard()
-            .write_image(&tauri_plugin_clipboard_manager::ClipboardImage {
-                rgba: image.as_raw().clone(),
-                width: image.width() as usize,
-                height: image.height() as usize,
-            })
+            .write_image(&clipboard_img)
             .map_err(|e| GrabError::ClipboardFailed(e.to_string()))?;
 
         copied_to_clipboard = true;
@@ -449,6 +478,19 @@ pub async fn trigger_capture_window(app: &AppHandle) -> GrabResult<()> {
     if let Some(window) = app.get_webview_window("main") {
         window.emit("show-window-picker", ()).ok();
     }
+
+    Ok(())
+}
+
+/// Trigger capture of a specific display (called from tray submenu)
+pub async fn trigger_capture_display(app: &AppHandle, display_id: &str) -> GrabResult<()> {
+    let prefs = app.state::<PreferencesStore>();
+    let history = app.state::<HistoryStore>();
+
+    let (image, metadata) = capture::capture_display(display_id)?;
+    let preferences = prefs.get();
+
+    save_and_process_capture(app, &image, metadata, &preferences, &history).await?;
 
     Ok(())
 }

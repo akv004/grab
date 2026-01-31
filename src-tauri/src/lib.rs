@@ -42,10 +42,7 @@ pub fn run() {
             // Register global shortcuts
             register_global_shortcuts(app)?;
 
-            // Hide the main window on startup (tray app behavior)
-            if let Some(window) = app.get_webview_window("main") {
-                window.hide().ok();
-            }
+            // Window visibility controlled by tauri.conf.json
 
             Ok(())
         })
@@ -90,7 +87,7 @@ pub fn run() {
 
 /// Register global keyboard shortcuts
 fn register_global_shortcuts(app: &tauri::App) -> Result<(), Box<dyn std::error::Error>> {
-    let app_handle = app.handle().clone();
+    let _app_handle = app.handle().clone();
 
     // Get preferences to read configured shortcuts
     let prefs = app.state::<preferences::PreferencesStore>();
@@ -131,10 +128,16 @@ fn register_global_shortcuts(app: &tauri::App) -> Result<(), Box<dyn std::error:
             .build(),
     )?;
 
-    // Register the shortcuts
-    app.global_shortcut().register(full_screen_shortcut)?;
-    app.global_shortcut().register(region_shortcut)?;
-    app.global_shortcut().register(window_shortcut)?;
+    // Register the shortcuts (gracefully handle conflicts)
+    if let Err(e) = app.global_shortcut().register(full_screen_shortcut) {
+        eprintln!("Warning: Could not register full screen shortcut: {}", e);
+    }
+    if let Err(e) = app.global_shortcut().register(region_shortcut) {
+        eprintln!("Warning: Could not register region shortcut: {}", e);
+    }
+    if let Err(e) = app.global_shortcut().register(window_shortcut) {
+        eprintln!("Warning: Could not register window shortcut: {}", e);
+    }
 
     Ok(())
 }

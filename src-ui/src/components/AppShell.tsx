@@ -1,5 +1,4 @@
 import { ReactNode } from 'react';
-import { invoke } from '@tauri-apps/api/core';
 import Header from './Header';
 import Sidebar from './Sidebar';
 import { useAppStore } from '../state/store';
@@ -8,33 +7,36 @@ interface AppShellProps {
   children: ReactNode;
   currentPage: 'editor' | 'settings';
   onNavigate: (page: 'editor' | 'settings') => void;
+  onShowScreenPicker: () => void;
+  onShowRegionOverlay: () => void;
+  onShowWindowPicker: () => void;
 }
 
-export default function AppShell({ children, currentPage, onNavigate }: AppShellProps) {
+export default function AppShell({
+  children,
+  currentPage,
+  onNavigate,
+  onShowScreenPicker,
+  onShowRegionOverlay,
+  onShowWindowPicker,
+}: AppShellProps) {
   const history = useAppStore((state) => state.history);
   const currentCapture = useAppStore((state) => state.currentCapture);
   const setCurrentCapture = useAppStore((state) => state.setCurrentCapture);
-  const loadHistory = useAppStore((state) => state.loadHistory);
 
-  const handleCaptureFullScreen = async () => {
-    try {
-      await invoke('capture_full_screen');
-      loadHistory();
-    } catch (error) {
-      console.error('Full screen capture failed:', error);
-    }
+  const handleFullScreen = () => {
+    console.log('[AppShell] Full Screen clicked - calling onShowScreenPicker');
+    onShowScreenPicker();
   };
 
-  const handleCaptureRegion = async () => {
-    // Emit event to show region overlay
-    const { emit } = await import('@tauri-apps/api/event');
-    emit('start-region-select');
+  const handleRegion = () => {
+    console.log('[AppShell] Region clicked - calling onShowRegionOverlay');
+    onShowRegionOverlay();
   };
 
-  const handleCaptureWindow = async () => {
-    // Emit event to show window picker
-    const { emit } = await import('@tauri-apps/api/event');
-    emit('show-window-picker');
+  const handleWindow = () => {
+    console.log('[AppShell] Window clicked - calling onShowWindowPicker');
+    onShowWindowPicker();
   };
 
   return (
@@ -42,9 +44,9 @@ export default function AppShell({ children, currentPage, onNavigate }: AppShell
       <Header
         currentPage={currentPage}
         onNavigate={onNavigate}
-        onCaptureFullScreen={handleCaptureFullScreen}
-        onCaptureRegion={handleCaptureRegion}
-        onCaptureWindow={handleCaptureWindow}
+        onCaptureFullScreen={handleFullScreen}
+        onCaptureRegion={handleRegion}
+        onCaptureWindow={handleWindow}
       />
       <div className="app-main">
         {currentPage === 'editor' && (

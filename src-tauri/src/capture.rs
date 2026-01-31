@@ -13,13 +13,22 @@ use xcap::{Monitor, Window};
 pub fn capture_full_screen() -> GrabResult<(RgbaImage, CaptureMetadata)> {
     let monitors = Monitor::all().map_err(|e| GrabError::CaptureFailed(e.to_string()))?;
 
+    eprintln!("DEBUG: Found {} monitors", monitors.len());
+    for m in &monitors {
+        eprintln!("  Monitor: id={:?}, primary={:?}, size={}x{}", 
+            m.id().ok(), m.is_primary().ok(), 
+            m.width().unwrap_or(0), m.height().unwrap_or(0));
+    }
+
     // Find primary monitor or use first available
     let monitor = monitors
         .into_iter()
-        .find(|m| m.is_primary())
+        .find(|m| m.is_primary().unwrap_or(false))
         .or_else(|| Monitor::all().ok()?.into_iter().next())
         .ok_or_else(|| GrabError::SourceNotFound("No monitors found".to_string()))?;
 
+    eprintln!("DEBUG: Capturing monitor id={:?}", monitor.id().ok());
+    
     capture_monitor(&monitor)
 }
 
@@ -29,7 +38,7 @@ pub fn capture_display(display_id: &str) -> GrabResult<(RgbaImage, CaptureMetada
 
     let monitor = monitors
         .into_iter()
-        .find(|m| m.id().to_string() == display_id)
+        .find(|m| m.id().map(|id| id.to_string()).unwrap_or_default() == display_id)
         .ok_or_else(|| GrabError::SourceNotFound(format!("Display {} not found", display_id)))?;
 
     capture_monitor(&monitor)
@@ -41,18 +50,24 @@ fn capture_monitor(monitor: &Monitor) -> GrabResult<(RgbaImage, CaptureMetadata)
         .capture_image()
         .map_err(|e| GrabError::CaptureFailed(e.to_string()))?;
 
+    eprintln!("DEBUG: Captured image size={}x{}", image.width(), image.height());
+    
+    // Check if image is all black (first 100 pixels)
+    let non_black = image.pixels().take(100).filter(|p| p.0[0] > 0 || p.0[1] > 0 || p.0[2] > 0).count();
+    eprintln!("DEBUG: Non-black pixels in first 100: {}", non_black);
+
     let metadata = CaptureMetadata {
         mode: CaptureMode::FullScreen,
-        display_id: Some(monitor.id().to_string()),
+        display_id: monitor.id().ok().map(|id| id.to_string()),
         window_id: None,
         bounds: RegionBounds {
-            x: monitor.x(),
-            y: monitor.y(),
-            width: monitor.width(),
-            height: monitor.height(),
+            x: monitor.x().unwrap_or(0),
+            y: monitor.y().unwrap_or(0),
+            width: monitor.width().unwrap_or(0),
+            height: monitor.height().unwrap_or(0),
         },
         timestamp: Utc::now().to_rfc3339(),
-        scale_factor: monitor.scale_factor(),
+        scale_factor: monitor.scale_factor().unwrap_or(1.0) as f64,
         file_name: None,
     };
 
@@ -65,7 +80,7 @@ pub fn capture_window(window_id: &str) -> GrabResult<(RgbaImage, CaptureMetadata
 
     let window = windows
         .into_iter()
-        .find(|w| w.id().to_string() == window_id)
+        .find(|w| w.id().map(|id| id.to_string()).unwrap_or_default() == window_id)
         .ok_or_else(|| GrabError::SourceNotFound(format!("Window {} not found", window_id)))?;
 
     let image = window
@@ -75,12 +90,12 @@ pub fn capture_window(window_id: &str) -> GrabResult<(RgbaImage, CaptureMetadata
     let metadata = CaptureMetadata {
         mode: CaptureMode::Window,
         display_id: None,
-        window_id: Some(window.id().to_string()),
+        window_id: window.id().ok().map(|id| id.to_string()),
         bounds: RegionBounds {
-            x: window.x(),
-            y: window.y(),
-            width: window.width(),
-            height: window.height(),
+            x: window.x().unwrap_or(0),
+            y: window.y().unwrap_or(0),
+            width: window.width().unwrap_or(0),
+            height: window.height().unwrap_or(0),
         },
         timestamp: Utc::now().to_rfc3339(),
         scale_factor: 1.0, // Windows don't have individual scale factors
@@ -134,18 +149,24 @@ pub fn get_screen_sources() -> GrabResult<Vec<CaptureSource>> {
     let sources = monitors
         .into_iter()
         .enumerate()
-        .map(|(i, m)| CaptureSource {
-            id: m.id().to_string(),
-            name: format!(
-                "Display {}: {}x{}{}",
-                i + 1,
-                m.width(),
-                m.height(),
-                if m.is_primary() { " (Primary)" } else { "" }
-            ),
-            thumbnail: None, // Could generate thumbnail if needed
-            display_id: Some(m.id().to_string()),
-            app_icon: None,
+        .map(|(i, m)| {
+            let id = m.id().map(|id| id.to_string()).unwrap_or_default();
+            let width = m.width().unwrap_or(0);
+            let height = m.height().unwrap_or(0);
+            let is_primary = m.is_primary().unwrap_or(false);
+            CaptureSource {
+                id: id.clone(),
+                name: format!(
+                    "Display {}: {}x{}{}",
+                    i + 1,
+                    width,
+                    height,
+                    if is_primary { " (Primary)" } else { "" }
+                ),
+                thumbnail: None, // Could generate thumbnail if needed
+                display_id: Some(id),
+                app_icon: None,
+            }
         })
         .collect();
 
@@ -160,11 +181,14 @@ pub fn get_window_sources() -> GrabResult<Vec<CaptureSource>> {
         .into_iter()
         .filter(|w| {
             // Filter out empty windows and system windows
-            w.width() > 0 && w.height() > 0 && !w.title().is_empty()
+            let width = w.width().unwrap_or(0);
+            let height = w.height().unwrap_or(0);
+            let title = w.title().unwrap_or_default();
+            width > 0 && height > 0 && !title.is_empty()
         })
         .map(|w| CaptureSource {
-            id: w.id().to_string(),
-            name: w.title().to_string(),
+            id: w.id().map(|id| id.to_string()).unwrap_or_default(),
+            name: w.title().unwrap_or_default(),
             thumbnail: None,
             display_id: None,
             app_icon: None,

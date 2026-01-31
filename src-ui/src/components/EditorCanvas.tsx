@@ -13,7 +13,7 @@ interface EditorCanvasProps {
   imageUrl: string;
   currentTool: Tool;
   onCropApply: (dataUrl: string) => void;
-  imageRef: RefObject<HTMLImageElement | null>;
+  imageRef: RefObject<HTMLImageElement>;
 }
 
 export default function EditorCanvas({

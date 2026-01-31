@@ -28,7 +28,15 @@
       "menuOnLeftClick": true
     },
     "security": {
-      "csp": "default-src 'self'; img-src 'self' data: asset: file:; style-src 'self' 'unsafe-inline'"
+      "csp": "default-src 'self'; img-src 'self' data: asset: https://asset.localhost; style-src 'self' 'unsafe-inline'",
+      "assetProtocol": {
+        "enable": true,
+        "scope": [
+          "$HOME/Pictures/**",
+          "$HOME/Pictures/Grab Captures/**",
+          "**"
+        ]
+      }
     }
   },
   "bundle": {
@@ -53,22 +61,7 @@
   },
   "plugins": {
     "fs": {
-      "scope": {
-        "allow": ["$PICTURE/**", "$DOCUMENT/**", "$HOME/**", "$DOWNLOAD/**", "$APPDATA/**"],
-        "deny": []
-      }
-    },
-    "dialog": {
-      "all": true
-    },
-    "notification": {
-      "all": true
-    },
-    "global-shortcut": {
-      "all": true
-    },
-    "clipboard-manager": {
-      "all": true
+      "requireLiteralLeadingDot": false
     },
     "shell": {
       "open": true

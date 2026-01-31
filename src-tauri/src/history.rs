@@ -7,7 +7,7 @@ use crate::types::HistoryItem;
 use std::fs;
 use std::path::PathBuf;
 use std::sync::Mutex;
-use tauri::AppHandle;
+use tauri::{AppHandle, Manager};
 
 const HISTORY_FILE: &str = "history.json";
 const MAX_HISTORY_ITEMS: usize = 50;
