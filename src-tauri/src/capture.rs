@@ -1,24 +1,21 @@
 //! Screen capture functionality
 //!
 //! Uses xcap for cross-platform screen capture.
+//! Optimized for performance with fast PNG compression.
 
 use crate::error::{GrabError, GrabResult};
 use crate::types::{CaptureMetadata, CaptureMode, CaptureSource, RegionBounds};
 use chrono::Utc;
-use image::{ImageBuffer, Rgba, RgbaImage};
+use image::codecs::png::{CompressionType, FilterType, PngEncoder};
+use image::{ImageEncoder, RgbaImage};
+use std::fs::File;
+use std::io::BufWriter;
 use std::path::PathBuf;
 use xcap::{Monitor, Window};
 
 /// Capture the full screen (primary monitor)
 pub fn capture_full_screen() -> GrabResult<(RgbaImage, CaptureMetadata)> {
     let monitors = Monitor::all().map_err(|e| GrabError::CaptureFailed(e.to_string()))?;
-
-    eprintln!("DEBUG: Found {} monitors", monitors.len());
-    for m in &monitors {
-        eprintln!("  Monitor: id={:?}, primary={:?}, size={}x{}", 
-            m.id().ok(), m.is_primary().ok(), 
-            m.width().unwrap_or(0), m.height().unwrap_or(0));
-    }
 
     // Find primary monitor or use first available
     let monitor = monitors
@@ -27,8 +24,6 @@ pub fn capture_full_screen() -> GrabResult<(RgbaImage, CaptureMetadata)> {
         .or_else(|| Monitor::all().ok()?.into_iter().next())
         .ok_or_else(|| GrabError::SourceNotFound("No monitors found".to_string()))?;
 
-    eprintln!("DEBUG: Capturing monitor id={:?}", monitor.id().ok());
-    
     capture_monitor(&monitor)
 }
 
@@ -49,12 +44,6 @@ fn capture_monitor(monitor: &Monitor) -> GrabResult<(RgbaImage, CaptureMetadata)
     let image = monitor
         .capture_image()
         .map_err(|e| GrabError::CaptureFailed(e.to_string()))?;
-
-    eprintln!("DEBUG: Captured image size={}x{}", image.width(), image.height());
-    
-    // Check if image is all black (first 100 pixels)
-    let non_black = image.pixels().take(100).filter(|p| p.0[0] > 0 || p.0[1] > 0 || p.0[2] > 0).count();
-    eprintln!("DEBUG: Non-black pixels in first 100: {}", non_black);
 
     let metadata = CaptureMetadata {
         mode: CaptureMode::FullScreen,
@@ -216,9 +205,25 @@ pub fn generate_filename(template: &str, mode: CaptureMode) -> String {
         .replace("{timestamp}", &now.timestamp().to_string())
 }
 
-/// Save image to disk
+/// Save image to disk with optimized PNG compression
+///
+/// Uses fast compression for better performance while maintaining full quality.
 pub fn save_image(image: &RgbaImage, path: &PathBuf) -> GrabResult<()> {
-    image.save(path).map_err(GrabError::Image)?;
+    let file = File::create(path)?;
+    let writer = BufWriter::new(file);
+    
+    // Use fast compression - significantly faster than default with identical quality
+    let encoder = PngEncoder::new_with_quality(writer, CompressionType::Fast, FilterType::Adaptive);
+    
+    encoder
+        .write_image(
+            image.as_raw(),
+            image.width(),
+            image.height(),
+            image::ExtendedColorType::Rgba8,
+        )
+        .map_err(|e| GrabError::Image(e))?;
+    
     Ok(())
 }
 
