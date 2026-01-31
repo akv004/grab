@@ -1,1 +1,1 @@
-{}
+{"default":{"identifier":"default","description":"Default capabilities for the Grab application","local":true,"windows":["main"],"permissions":["core:default","core:event:default","core:window:default","core:app:default","notification:default","clipboard-manager:default","dialog:default","fs:default","shell:default"]}}

@@ -439,9 +439,12 @@ async fn save_and_process_capture(
             .ok();
     }
 
-    // Open editor if enabled
-    if preferences.open_editor_after_capture {
-        if let Some(window) = app.get_webview_window("main") {
+    // Always refresh history in UI after capture
+    if let Some(window) = app.get_webview_window("main") {
+        window.emit("history:refresh", ()).ok();
+        
+        // Open editor if enabled
+        if preferences.open_editor_after_capture {
             window.show().ok();
             window.set_focus().ok();
 
