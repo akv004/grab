@@ -1,0 +1,77 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "grab",
+  "version": "2.0.0",
+  "identifier": "com.akv004.grab",
+  "build": {
+    "beforeDevCommand": "npm run ui:dev",
+    "devUrl": "http://localhost:5173",
+    "beforeBuildCommand": "npm run ui:build",
+    "frontendDist": "../src-ui/dist"
+  },
+  "app": {
+    "withGlobalTauri": true,
+    "windows": [
+      {
+        "title": "Grab Editor",
+        "width": 1200,
+        "height": 800,
+        "resizable": true,
+        "fullscreen": false,
+        "visible": false,
+        "center": true
+      }
+    ],
+    "trayIcon": {
+      "iconPath": "../assets/trayIcon.png",
+      "iconAsTemplate": true,
+      "menuOnLeftClick": true
+    },
+    "security": {
+      "csp": "default-src 'self'; img-src 'self' data: asset: file:; style-src 'self' 'unsafe-inline'"
+    }
+  },
+  "bundle": {
+    "active": true,
+    "icon": [
+      "../assets/icon.png"
+    ],
+    "targets": "all",
+    "macOS": {
+      "minimumSystemVersion": "10.15"
+    },
+    "linux": {
+      "appimage": {
+        "bundleMediaFramework": true
+      }
+    },
+    "windows": {
+      "wix": {
+        "language": "en-US"
+      }
+    }
+  },
+  "plugins": {
+    "fs": {
+      "scope": {
+        "allow": ["$PICTURE/**", "$DOCUMENT/**", "$HOME/**", "$DOWNLOAD/**", "$APPDATA/**"],
+        "deny": []
+      }
+    },
+    "dialog": {
+      "all": true
+    },
+    "notification": {
+      "all": true
+    },
+    "global-shortcut": {
+      "all": true
+    },
+    "clipboard-manager": {
+      "all": true
+    },
+    "shell": {
+      "open": true
+    }
+  }
+}

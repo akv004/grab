@@ -8,6 +8,13 @@ out/
 # Electron builder output
 release/
 
+# Tauri build output
+src-tauri/target/
+
+# React/Vite build output
+src-ui/dist/
+src-ui/node_modules/
+
 # OS files
 .DS_Store
 Thumbs.db

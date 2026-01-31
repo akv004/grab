@@ -1,0 +1,213 @@
+//! Screen capture functionality
+//!
+//! Uses xcap for cross-platform screen capture.
+
+use crate::error::{GrabError, GrabResult};
+use crate::types::{CaptureMetadata, CaptureMode, CaptureSource, RegionBounds};
+use chrono::Utc;
+use image::{ImageBuffer, Rgba, RgbaImage};
+use std::path::PathBuf;
+use xcap::{Monitor, Window};
+
+/// Capture the full screen (primary monitor)
+pub fn capture_full_screen() -> GrabResult<(RgbaImage, CaptureMetadata)> {
+    let monitors = Monitor::all().map_err(|e| GrabError::CaptureFailed(e.to_string()))?;
+
+    // Find primary monitor or use first available
+    let monitor = monitors
+        .into_iter()
+        .find(|m| m.is_primary())
+        .or_else(|| Monitor::all().ok()?.into_iter().next())
+        .ok_or_else(|| GrabError::SourceNotFound("No monitors found".to_string()))?;
+
+    capture_monitor(&monitor)
+}
+
+/// Capture a specific display by ID
+pub fn capture_display(display_id: &str) -> GrabResult<(RgbaImage, CaptureMetadata)> {
+    let monitors = Monitor::all().map_err(|e| GrabError::CaptureFailed(e.to_string()))?;
+
+    let monitor = monitors
+        .into_iter()
+        .find(|m| m.id().to_string() == display_id)
+        .ok_or_else(|| GrabError::SourceNotFound(format!("Display {} not found", display_id)))?;
+
+    capture_monitor(&monitor)
+}
+
+/// Capture a specific monitor
+fn capture_monitor(monitor: &Monitor) -> GrabResult<(RgbaImage, CaptureMetadata)> {
+    let image = monitor
+        .capture_image()
+        .map_err(|e| GrabError::CaptureFailed(e.to_string()))?;
+
+    let metadata = CaptureMetadata {
+        mode: CaptureMode::FullScreen,
+        display_id: Some(monitor.id().to_string()),
+        window_id: None,
+        bounds: RegionBounds {
+            x: monitor.x(),
+            y: monitor.y(),
+            width: monitor.width(),
+            height: monitor.height(),
+        },
+        timestamp: Utc::now().to_rfc3339(),
+        scale_factor: monitor.scale_factor(),
+        file_name: None,
+    };
+
+    Ok((image, metadata))
+}
+
+/// Capture a specific window by ID
+pub fn capture_window(window_id: &str) -> GrabResult<(RgbaImage, CaptureMetadata)> {
+    let windows = Window::all().map_err(|e| GrabError::CaptureFailed(e.to_string()))?;
+
+    let window = windows
+        .into_iter()
+        .find(|w| w.id().to_string() == window_id)
+        .ok_or_else(|| GrabError::SourceNotFound(format!("Window {} not found", window_id)))?;
+
+    let image = window
+        .capture_image()
+        .map_err(|e| GrabError::CaptureFailed(e.to_string()))?;
+
+    let metadata = CaptureMetadata {
+        mode: CaptureMode::Window,
+        display_id: None,
+        window_id: Some(window.id().to_string()),
+        bounds: RegionBounds {
+            x: window.x(),
+            y: window.y(),
+            width: window.width(),
+            height: window.height(),
+        },
+        timestamp: Utc::now().to_rfc3339(),
+        scale_factor: 1.0, // Windows don't have individual scale factors
+        file_name: None,
+    };
+
+    Ok((image, metadata))
+}
+
+/// Capture a region of the screen
+pub fn capture_region(
+    region: &RegionBounds,
+    display_id: Option<&str>,
+) -> GrabResult<(RgbaImage, CaptureMetadata)> {
+    // First capture the full screen or specified display
+    let (full_image, mut metadata) = if let Some(id) = display_id {
+        capture_display(id)?
+    } else {
+        capture_full_screen()?
+    };
+
+    // Crop to the specified region
+    let x = region.x.max(0) as u32;
+    let y = region.y.max(0) as u32;
+    let width = region.width.min(full_image.width().saturating_sub(x));
+    let height = region.height.min(full_image.height().saturating_sub(y));
+
+    if width == 0 || height == 0 {
+        return Err(GrabError::InvalidRequest(
+            "Invalid region dimensions".to_string(),
+        ));
+    }
+
+    let cropped = image::imageops::crop_imm(&full_image, x, y, width, height).to_image();
+
+    metadata.mode = CaptureMode::Region;
+    metadata.bounds = RegionBounds {
+        x: region.x,
+        y: region.y,
+        width,
+        height,
+    };
+
+    Ok((cropped, metadata))
+}
+
+/// Get all available screen sources (monitors)
+pub fn get_screen_sources() -> GrabResult<Vec<CaptureSource>> {
+    let monitors = Monitor::all().map_err(|e| GrabError::CaptureFailed(e.to_string()))?;
+
+    let sources = monitors
+        .into_iter()
+        .enumerate()
+        .map(|(i, m)| CaptureSource {
+            id: m.id().to_string(),
+            name: format!(
+                "Display {}: {}x{}{}",
+                i + 1,
+                m.width(),
+                m.height(),
+                if m.is_primary() { " (Primary)" } else { "" }
+            ),
+            thumbnail: None, // Could generate thumbnail if needed
+            display_id: Some(m.id().to_string()),
+            app_icon: None,
+        })
+        .collect();
+
+    Ok(sources)
+}
+
+/// Get all available window sources
+pub fn get_window_sources() -> GrabResult<Vec<CaptureSource>> {
+    let windows = Window::all().map_err(|e| GrabError::CaptureFailed(e.to_string()))?;
+
+    let sources = windows
+        .into_iter()
+        .filter(|w| {
+            // Filter out empty windows and system windows
+            w.width() > 0 && w.height() > 0 && !w.title().is_empty()
+        })
+        .map(|w| CaptureSource {
+            id: w.id().to_string(),
+            name: w.title().to_string(),
+            thumbnail: None,
+            display_id: None,
+            app_icon: None,
+        })
+        .collect();
+
+    Ok(sources)
+}
+
+/// Generate a filename based on the naming template
+pub fn generate_filename(template: &str, mode: CaptureMode) -> String {
+    let now = Utc::now();
+
+    let mode_str = match mode {
+        CaptureMode::FullScreen => "fullscreen",
+        CaptureMode::Display => "display",
+        CaptureMode::Window => "window",
+        CaptureMode::Region => "region",
+    };
+
+    template
+        .replace("{date}", &now.format("%Y-%m-%d").to_string())
+        .replace("{time}", &now.format("%H-%M-%S").to_string())
+        .replace("{mode}", mode_str)
+        .replace("{timestamp}", &now.timestamp().to_string())
+}
+
+/// Save image to disk
+pub fn save_image(image: &RgbaImage, path: &PathBuf) -> GrabResult<()> {
+    image.save(path).map_err(GrabError::Image)?;
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_generate_filename() {
+        let template = "grab-{date}-{time}-{mode}";
+        let filename = generate_filename(template, CaptureMode::FullScreen);
+
+        assert!(filename.starts_with("grab-"));
+        assert!(filename.contains("fullscreen"));
+    }
+}

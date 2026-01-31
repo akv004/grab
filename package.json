@@ -1,6 +1,6 @@
 {
   "name": "grab",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "A lightweight, developer-friendly tool for capturing, annotating, and exporting on-screen visuals for documentation, debugging, and knowledge sharing.",
   "main": "dist/main/index.js",
   "scripts": {
@@ -14,7 +14,13 @@
     "dist": "npm run build && electron-builder",
     "dist:mac": "npm run build && electron-builder --mac",
     "dist:win": "npm run build && electron-builder --win",
-    "dist:linux": "npm run build && electron-builder --linux"
+    "dist:linux": "npm run build && electron-builder --linux",
+    "ui:install": "cd src-ui && npm install",
+    "ui:dev": "cd src-ui && npm run dev",
+    "ui:build": "cd src-ui && npm run build",
+    "tauri": "cargo tauri",
+    "tauri:dev": "cargo tauri dev",
+    "tauri:build": "cargo tauri build"
   },
   "keywords": [
     "screenshot",
