@@ -4,7 +4,7 @@
   "description": "A lightweight, developer-friendly tool for capturing, annotating, and exporting on-screen visuals for documentation, debugging, and knowledge sharing.",
   "main": "dist/main/index.js",
   "scripts": {
-    "dev": "cargo tauri dev",
+    "dev": "./scripts/dev.sh",
     "build": "cargo tauri build",
     "build:debug": "cargo tauri build --debug",
     "test": "cd src-ui && npm test",
