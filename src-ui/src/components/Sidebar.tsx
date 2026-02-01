@@ -1,3 +1,4 @@
+import { useState, useEffect, useRef } from 'react';
 import { HistoryItem } from '../state/store';
 
 interface SidebarProps {
@@ -6,14 +7,82 @@ interface SidebarProps {
   onSelectCapture: (path: string) => void;
 }
 
+// Lazy loaded thumbnail component - only loads when visible
+function LazyThumbnail({ filePath, isVisible }: { filePath: string; isVisible: boolean }) {
+  const [loaded, setLoaded] = useState(false);
+  const [url, setUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (isVisible && !url) {
+      // Only convert URL when thumbnail becomes visible
+      setUrl(`asset://localhost/${encodeURIComponent(filePath)}`);
+    }
+  }, [isVisible, filePath, url]);
+
+  if (!isVisible || !url) {
+    return <div className="history-thumb history-thumb-placeholder" />;
+  }
+
+  return (
+    <div
+      className={`history-thumb ${loaded ? '' : 'loading'}`}
+      style={{
+        backgroundImage: loaded ? `url('${url}')` : undefined,
+      }}
+    >
+      <img
+        src={url}
+        alt=""
+        style={{ display: 'none' }}
+        onLoad={() => setLoaded(true)}
+        onError={() => setLoaded(true)}
+      />
+    </div>
+  );
+}
+
 export default function Sidebar({ history, currentCapture, onSelectCapture }: SidebarProps) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [visibleItems, setVisibleItems] = useState<Set<string>>(new Set());
+
+  // Use IntersectionObserver for lazy loading
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          const id = entry.target.getAttribute('data-id');
+          if (id) {
+            setVisibleItems((prev) => {
+              const next = new Set(prev);
+              if (entry.isIntersecting) {
+                next.add(id);
+              }
+              return next;
+            });
+          }
+        });
+      },
+      {
+        root: containerRef.current,
+        rootMargin: '50px', // Load slightly before visible
+        threshold: 0,
+      }
+    );
+
+    // Observe all history items
+    const items = containerRef.current?.querySelectorAll('.history-item');
+    items?.forEach((item) => observer.observe(item));
+
+    return () => observer.disconnect();
+  }, [history]);
+
   // Group history by date
   const groupedHistory = groupByDate(history);
 
   return (
     <aside className="sidebar">
       <div className="sidebar-header">History</div>
-      <div className="sidebar-content">
+      <div className="sidebar-content" ref={containerRef}>
         <div className="history-list">
           {history.length === 0 ? (
             <div className="empty-state" style={{ padding: '24px' }}>
@@ -26,14 +95,13 @@ export default function Sidebar({ history, currentCapture, onSelectCapture }: Si
                 {items.map((item) => (
                   <div
                     key={item.id}
+                    data-id={item.id}
                     className={`history-item ${currentCapture === item.filePath ? 'active' : ''}`}
                     onClick={() => onSelectCapture(item.filePath)}
                   >
-                    <div
-                      className="history-thumb"
-                      style={{
-                        backgroundImage: `url('${convertFilePath(item.filePath)}')`,
-                      }}
+                    <LazyThumbnail
+                      filePath={item.filePath}
+                      isVisible={visibleItems.has(item.id)}
                     />
                     <div className="history-info">
                       <div className="history-name">
@@ -89,10 +157,4 @@ function getFileName(path: string): string {
 function formatTime(timestamp: string): string {
   const date = new Date(timestamp);
   return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-}
-
-function convertFilePath(path: string): string {
-  // Convert file path to asset URL for Tauri
-  // In Tauri 2, we use the asset protocol
-  return `asset://localhost/${encodeURIComponent(path)}`;
 }

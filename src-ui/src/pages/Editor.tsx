@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { invoke } from '@tauri-apps/api/core';
+import { convertFileSrc } from '@tauri-apps/api/core';
 import { useAppStore } from '../state/store';
 import EditorToolbar from '../components/EditorToolbar';
 import EditorCanvas from '../components/EditorCanvas';
@@ -11,34 +12,39 @@ export default function Editor() {
   const loadHistory = useAppStore((state) => state.loadHistory);
   const [currentTool, setCurrentTool] = useState<Tool>(null);
   const [imageDataUrl, setImageDataUrl] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
   const imageRef = useRef<HTMLImageElement | null>(null);
 
-  // Load image when currentCapture changes
-  useEffect(() => {
-    const loadImage = async () => {
-      if (currentCapture) {
-        console.log('[Editor] Loading capture:', currentCapture);
-        // For file paths, use Tauri's convertFileSrc
-        if (currentCapture.startsWith('data:')) {
-          setImageDataUrl(currentCapture);
-        } else {
-          try {
-            const { convertFileSrc } = await import('@tauri-apps/api/core');
-            const url = convertFileSrc(currentCapture);
-            console.log('[Editor] Converted URL:', url);
-            setImageDataUrl(url);
-          } catch (error) {
-            console.error('[Editor] Failed to convert file src:', error);
-            // Fallback: try direct file path for development
-            setImageDataUrl(`file://${currentCapture}`);
-          }
-        }
-      } else {
-        setImageDataUrl(null);
-      }
-    };
-    loadImage();
+  // Memoize the converted URL to prevent re-computation
+  const convertedUrl = useMemo(() => {
+    if (!currentCapture) return null;
+    if (currentCapture.startsWith('data:')) return currentCapture;
+    try {
+      return convertFileSrc(currentCapture);
+    } catch {
+      return `file://${currentCapture}`;
+    }
   }, [currentCapture]);
+
+  // Load image when URL changes
+  useEffect(() => {
+    if (convertedUrl) {
+      setIsLoading(true);
+      const img = new Image();
+      img.onload = () => {
+        setImageDataUrl(convertedUrl);
+        setIsLoading(false);
+      };
+      img.onerror = () => {
+        setImageDataUrl(convertedUrl);
+        setIsLoading(false);
+      };
+      img.src = convertedUrl;
+    } else {
+      setImageDataUrl(null);
+      setIsLoading(false);
+    }
+  }, [convertedUrl]);
 
   const handleCopy = async () => {
     if (!currentCapture && !imageDataUrl) return;
@@ -89,6 +95,16 @@ export default function Editor() {
     setImageDataUrl(croppedDataUrl);
     setCurrentTool(null);
   }, []);
+
+  // Show loading state
+  if (isLoading) {
+    return (
+      <div className="empty-state">
+        <div className="loading-spinner" />
+        <h3>Loading...</h3>
+      </div>
+    );
+  }
 
   if (!imageDataUrl) {
     return (
