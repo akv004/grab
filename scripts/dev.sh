@@ -78,6 +78,13 @@ echo "🔧 Starting Tauri development server..."
 echo "   (Press Ctrl+C to stop)"
 echo ""
 
+# Kill any existing processes to prevent port conflicts
+echo "🧹 Cleaning up existing processes..."
+pkill -f "target/debug/grab" 2>/dev/null || true
+pkill -f "vite.*5173" 2>/dev/null || true
+lsof -ti :5173 2>/dev/null | xargs -r kill -9 2>/dev/null || true
+sleep 1
+
 # Software rendering for WebKitGTK stability on dual GPU systems
 export LIBGL_ALWAYS_SOFTWARE=1
 export __GLX_VENDOR_LIBRARY_NAME=mesa
