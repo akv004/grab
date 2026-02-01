@@ -31,14 +31,27 @@ pub async fn capture_full_screen(
     prefs: State<'_, PreferencesStore>,
     history: State<'_, HistoryStore>,
 ) -> Result<CaptureResult, GrabError> {
+    use std::time::Instant;
+    
+    let total_start = Instant::now();
+    eprintln!("[PERF] capture_full_screen: START");
+    
+    let capture_start = Instant::now();
     let (image, metadata) = match display_id {
         Some(id) => capture::capture_display(&id)?,
         None => capture::capture_full_screen()?,
     };
+    eprintln!("[PERF] capture_full_screen: capture took {:?}", capture_start.elapsed());
+    
+    let prefs_start = Instant::now();
     let preferences = prefs.get();
+    eprintln!("[PERF] capture_full_screen: get prefs took {:?}", prefs_start.elapsed());
 
+    let save_start = Instant::now();
     let result = save_and_process_capture(&app, &image, metadata, &preferences, &history).await?;
-
+    eprintln!("[PERF] capture_full_screen: save_and_process took {:?}", save_start.elapsed());
+    
+    eprintln!("[PERF] capture_full_screen: TOTAL {:?}", total_start.elapsed());
     Ok(result)
 }
 
@@ -372,11 +385,14 @@ async fn save_and_process_capture(
     preferences: &CapturePreferences,
     history: &State<'_, HistoryStore>,
 ) -> GrabResult<CaptureResult> {
+    use std::time::Instant;
+    
     let mut file_path: Option<String> = None;
     let mut copied_to_clipboard = false;
 
     // Save to disk if enabled
     if preferences.save_to_disk {
+        let save_start = Instant::now();
         let output_folder = PathBuf::from(&preferences.output_folder);
 
         // Create output folder if it doesn't exist
@@ -388,6 +404,7 @@ async fn save_and_process_capture(
 
         // Save image
         capture::save_image(image, &full_path)?;
+        eprintln!("[PERF] save_and_process: save_image took {:?}", save_start.elapsed());
 
         let path_str = full_path.to_string_lossy().to_string();
         metadata.file_name = Some(filename);
@@ -397,8 +414,26 @@ async fn save_and_process_capture(
         history.add(path_str)?;
     }
 
-    // Copy to clipboard if enabled
+    // IMMEDIATELY emit history refresh so UI updates while clipboard copies
+    // This makes the app feel much more responsive
+    let emit_start = Instant::now();
+    if let Some(window) = app.get_webview_window("main") {
+        window.emit("history:refresh", ()).ok();
+        
+        if preferences.open_editor_after_capture {
+            window.show().ok();
+            window.set_focus().ok();
+            if let Some(ref path) = file_path {
+                window.emit("show-capture", path).ok();
+            }
+        }
+    }
+    eprintln!("[PERF] save_and_process: emit events took {:?}", emit_start.elapsed());
+
+    // Copy to clipboard AFTER UI is updated (user sees result immediately)
     if preferences.copy_to_clipboard {
+        let clipboard_start = Instant::now();
+        // Use new_owned with the raw buffer - Tauri handles this efficiently
         let clipboard_img = tauri::image::Image::new_owned(
             image.as_raw().clone(),
             image.width(),
@@ -407,12 +442,14 @@ async fn save_and_process_capture(
         app.clipboard()
             .write_image(&clipboard_img)
             .map_err(|e| GrabError::ClipboardFailed(e.to_string()))?;
+        eprintln!("[PERF] save_and_process: clipboard took {:?}", clipboard_start.elapsed());
 
         copied_to_clipboard = true;
     }
 
     // Show notification if enabled
     if preferences.show_notifications {
+        let notif_start = Instant::now();
         let mut message = String::new();
 
         if let Some(ref path) = file_path {
@@ -437,21 +474,7 @@ async fn save_and_process_capture(
             .body(&message)
             .show()
             .ok();
-    }
-
-    // Always refresh history in UI after capture
-    if let Some(window) = app.get_webview_window("main") {
-        window.emit("history:refresh", ()).ok();
-        
-        // Open editor if enabled
-        if preferences.open_editor_after_capture {
-            window.show().ok();
-            window.set_focus().ok();
-
-            if let Some(ref path) = file_path {
-                window.emit("show-capture", path).ok();
-            }
-        }
+        eprintln!("[PERF] save_and_process: notification took {:?}", notif_start.elapsed());
     }
 
     Ok(CaptureResult {

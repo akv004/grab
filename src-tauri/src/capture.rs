@@ -207,13 +207,14 @@ pub fn generate_filename(template: &str, mode: CaptureMode) -> String {
 
 /// Save image to disk with optimized PNG compression
 ///
-/// Uses fast compression for better performance while maintaining full quality.
+/// Uses fastest possible encoding (no filter) for maximum speed.
+/// PNG is lossless regardless of settings, so quality is identical.
 pub fn save_image(image: &RgbaImage, path: &PathBuf) -> GrabResult<()> {
     let file = File::create(path)?;
-    let writer = BufWriter::new(file);
+    let writer = BufWriter::with_capacity(1024 * 1024, file); // 1MB buffer
     
-    // Use fast compression - significantly faster than default with identical quality
-    let encoder = PngEncoder::new_with_quality(writer, CompressionType::Fast, FilterType::Adaptive);
+    // NoFilter is MUCH faster than Adaptive - filters are the slowest part of PNG
+    let encoder = PngEncoder::new_with_quality(writer, CompressionType::Fast, FilterType::NoFilter);
     
     encoder
         .write_image(
