@@ -11,6 +11,7 @@ import * as fs from 'fs'; // Ensure fs is available for saving buffers
 
 
 import * as path from 'path';
+import { fileURLToPath } from 'url';
 import { logger, captureLogger, exportLogger, LogLevel } from '../shared/logger';
 import {
   CaptureRequest,
@@ -439,7 +440,18 @@ async function initialize(): Promise<void> {
       if (data.startsWith('data:')) {
         image = nativeImage.createFromDataURL(data);
       } else {
-        image = nativeImage.createFromPath(data);
+        // Handle file:// protocol
+        let filePath = data;
+        if (filePath.startsWith('file:')) {
+          try {
+            filePath = fileURLToPath(filePath);
+          } catch (error) {
+            console.warn('Failed to parse file URL:', error);
+            // Fallback: simple strip if standard parsing fails
+            filePath = data.replace('file://', '');
+          }
+        }
+        image = nativeImage.createFromPath(filePath);
       }
       clipboard.writeImage(image);
     } catch (error) {

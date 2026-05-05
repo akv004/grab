@@ -334,6 +334,13 @@ export class Editor {
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
     }
 
+    // Callback for external state updates
+    private onImageSelected: ((path: string) => void) | null = null;
+
+    public setOnImageSelected(callback: (path: string) => void) {
+        this.onImageSelected = callback;
+    }
+
     public populateSidebar(history: any[]) {
         console.log('Populating sidebar with', history.length, 'items');
         const sidebar = document.querySelector('.history-list');
@@ -379,7 +386,12 @@ export class Editor {
                 const el = document.createElement('div');
                 el.className = 'history-item';
                 el.onclick = () => {
-                    this.loadImage(`file://${item.filePath}?t=${Date.now()}`);
+                    if (this.onImageSelected) {
+                        this.onImageSelected(item.filePath);
+                    } else {
+                        // Fallback if no callback registered
+                        this.loadImage(`file://${item.filePath}?t=${Date.now()}`);
+                    }
                     // Update active state
                     document.querySelectorAll('.history-item').forEach(i => i.classList.remove('active'));
                     el.classList.add('active');

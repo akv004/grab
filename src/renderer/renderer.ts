@@ -19,6 +19,15 @@ let editor: Editor | null = null;
 // Initialize Editor
 window.addEventListener('DOMContentLoaded', () => {
     editor = new Editor('editor-stage', 'preview-image', 'context-toolbar');
+
+    // Handle history selection
+    editor.setOnImageSelected((filePath) => {
+        currentFilePath = filePath;
+        // Use consistent file:// loading pattern with cache busting
+        if (editor) {
+            editor.loadImage(`file://${filePath}?t=${Date.now()}`);
+        }
+    });
 });
 
 const historyList = document.getElementById('history-list');
