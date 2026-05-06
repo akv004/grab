@@ -143,6 +143,7 @@ body {
   display: flex;
   align-items: center;
   gap: var(--spacing-sm);
+  position: relative;
   padding: var(--spacing-sm);
   border-radius: var(--radius-md);
   cursor: pointer;
@@ -155,6 +156,39 @@ body {
 
 .history-item.active {
   background-color: var(--accent);
+}
+
+.copy-btn {
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: var(--radius-sm);
+  opacity: 0;
+  transition: opacity var(--transition-fast), color var(--transition-fast);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.history-item:hover .copy-btn {
+  opacity: 0.6;
+}
+
+.copy-btn:hover {
+  opacity: 1 !important;
+  background-color: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
+.copy-btn.copied {
+  opacity: 1 !important;
+  color: #22c55e;
 }
 
 .history-thumb {

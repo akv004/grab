@@ -86,8 +86,11 @@ pub fn setup_tray(app_handle: &AppHandle) -> GrabResult<()> {
     )?;
 
     // Create the tray icon
+    // On Linux, use icon_as_template=false to avoid invisible template rendering
+    let icon = app_handle.default_window_icon().unwrap().clone();
     let _tray = TrayIconBuilder::new()
-        .icon(app_handle.default_window_icon().unwrap().clone())
+        .icon(icon)
+        .icon_as_template(false)
         .menu(&menu)
         .tooltip("Grab - Screen Capture")
         .show_menu_on_left_click(true)

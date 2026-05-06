@@ -9,11 +9,21 @@
         "core:default",
         "core:event:default",
         "core:window:default",
+        "core:window:allow-set-fullscreen",
+        "core:window:allow-set-decorations",
+        "core:window:allow-set-always-on-top",
+        "core:window:allow-set-position",
+        "core:window:allow-set-size",
+        "core:window:allow-set-focus",
+        "core:window:allow-hide",
+        "core:window:allow-show",
+        "core:window:allow-center",
         "core:app:default",
         "notification:default",
         "clipboard-manager:default",
         "dialog:default",
         "fs:default",
-        "shell:default"
+        "shell:default",
+        "drag:default"
     ]
 }

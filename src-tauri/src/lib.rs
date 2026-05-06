@@ -25,6 +25,7 @@ pub fn run() {
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .plugin(tauri_plugin_os::init())
+        .plugin(tauri_plugin_drag::init())
         .setup(|app| {
             // Initialize preferences
             let preferences = preferences::PreferencesStore::new(app.handle())?;
@@ -62,9 +63,14 @@ pub fn run() {
             commands::set_preferences,
             commands::get_output_folder,
             commands::browse_folder,
+            // Region capture
+            commands::capture_screen_preview,
+            commands::capture_region_from_preview,
             // File operations
             commands::save_image,
             commands::copy_to_clipboard,
+            commands::copy_path_to_clipboard,
+            commands::get_drag_icon_path,
             commands::delete_screenshot,
             commands::reveal_in_folder,
             commands::export_capture,

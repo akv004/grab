@@ -57,6 +57,15 @@ export default function Editor() {
     }
   };
 
+  const handleCopyPath = async () => {
+    if (!currentCapture) return;
+    try {
+      await invoke('copy_path_to_clipboard', { filePath: currentCapture });
+    } catch (error) {
+      console.error('Copy path failed:', error);
+    }
+  };
+
   const handleSave = async () => {
     if (!currentCapture && !imageDataUrl) return;
     try {
@@ -135,6 +144,7 @@ export default function Editor() {
         currentTool={currentTool}
         onSelectTool={setCurrentTool}
         onCopy={handleCopy}
+        onCopyPath={handleCopyPath}
         onSave={handleSave}
         onReveal={handleReveal}
         onDelete={handleDelete}

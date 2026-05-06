@@ -248,8 +248,9 @@ pub async fn copy_to_clipboard(data: String, app: AppHandle) -> Result<(), GrabE
             .decode(base64_data)
             .map_err(|e| GrabError::ClipboardFailed(e.to_string()))?
     } else {
-        // File path
-        fs::read(&data).map_err(|e| GrabError::ClipboardFailed(e.to_string()))?
+        // File path — accept plain paths or file:// URLs
+        let path = data.strip_prefix("file://").unwrap_or(&data);
+        fs::read(path).map_err(|e| GrabError::ClipboardFailed(e.to_string()))?
     };
 
     // Load image
@@ -268,6 +269,42 @@ pub async fn copy_to_clipboard(data: String, app: AppHandle) -> Result<(), GrabE
         .write_image(&clipboard_img)
         .map_err(|e| GrabError::ClipboardFailed(e.to_string()))?;
 
+    Ok(())
+}
+
+/// Get the path to the drag icon for native file drag operations
+#[tauri::command]
+pub fn get_drag_icon_path(app: AppHandle) -> Result<String, GrabError> {
+    // Try resource dir (bundled app)
+    if let Ok(resource_dir) = app.path().resource_dir() {
+        let icon_path = resource_dir.join("assets/drag-icon.png");
+        if icon_path.exists() {
+            return Ok(icon_path.to_string_lossy().to_string());
+        }
+    }
+    // Fallback: look relative to the executable (dev mode)
+    if let Ok(exe) = std::env::current_exe() {
+        // In dev: exe is at target/debug/grab, project root is 3 levels up
+        let mut dir = exe.as_path();
+        for _ in 0..5 {
+            if let Some(parent) = dir.parent() {
+                let candidate = parent.join("assets/drag-icon.png");
+                if candidate.exists() {
+                    return Ok(candidate.to_string_lossy().to_string());
+                }
+                dir = parent;
+            }
+        }
+    }
+    Err(GrabError::ExportFailed("Drag icon not found".to_string()))
+}
+
+/// Copy file path to clipboard as text (for CLI tools like Claude Code)
+#[tauri::command]
+pub async fn copy_path_to_clipboard(file_path: String, app: AppHandle) -> Result<(), GrabError> {
+    app.clipboard()
+        .write_text(&file_path)
+        .map_err(|e| GrabError::ClipboardFailed(e.to_string()))?;
     Ok(())
 }
 
@@ -371,6 +408,131 @@ pub fn export_capture(
     }
 
     Ok(Some(file_path.to_string_lossy().to_string()))
+}
+
+// ============================================================================
+// Region Capture Commands
+// ============================================================================
+
+/// Capture ALL monitors and stitch into a single image for region selection.
+/// Returns a base64 PNG data URL that spans the entire virtual desktop.
+#[tauri::command]
+pub async fn capture_screen_preview(
+    display_id: Option<String>,
+) -> Result<String, GrabError> {
+    use xcap::Monitor;
+
+    let image = if let Some(id) = display_id {
+        let (img, _) = capture::capture_display(&id)?;
+        img
+    } else {
+        // Capture all monitors and stitch them together
+        let monitors = Monitor::all().map_err(|e| GrabError::CaptureFailed(e.to_string()))?;
+
+        if monitors.len() <= 1 {
+            let (img, _) = capture::capture_full_screen()?;
+            img
+        } else {
+            // Find the bounding box of all monitors
+            let mut min_x = i32::MAX;
+            let mut min_y = i32::MAX;
+            let mut max_x = i32::MIN;
+            let mut max_y = i32::MIN;
+
+            let mut captures: Vec<(RgbaImage, i32, i32)> = Vec::new();
+            for m in &monitors {
+                let mx = m.x().unwrap_or(0);
+                let my = m.y().unwrap_or(0);
+                let mw = m.width().unwrap_or(0) as i32;
+                let mh = m.height().unwrap_or(0) as i32;
+                min_x = min_x.min(mx);
+                min_y = min_y.min(my);
+                max_x = max_x.max(mx + mw);
+                max_y = max_y.max(my + mh);
+
+                let img = m.capture_image()
+                    .map_err(|e| GrabError::CaptureFailed(e.to_string()))?;
+                captures.push((img, mx, my));
+            }
+
+            let total_w = (max_x - min_x) as u32;
+            let total_h = (max_y - min_y) as u32;
+            let mut canvas = RgbaImage::new(total_w, total_h);
+
+            for (img, mx, my) in &captures {
+                let offset_x = (mx - min_x) as u32;
+                let offset_y = (my - min_y) as u32;
+                image::imageops::overlay(
+                    &mut canvas,
+                    img,
+                    offset_x as i64,
+                    offset_y as i64,
+                );
+            }
+
+            canvas
+        }
+    };
+
+    // Encode to PNG in memory
+    let mut buf: Vec<u8> = Vec::new();
+    let dyn_img = image::DynamicImage::ImageRgba8(image);
+    dyn_img
+        .write_to(&mut std::io::Cursor::new(&mut buf), image::ImageFormat::Png)
+        .map_err(|e| GrabError::CaptureFailed(e.to_string()))?;
+
+    let b64 = base64::engine::general_purpose::STANDARD.encode(&buf);
+    Ok(format!("data:image/png;base64,{}", b64))
+}
+
+/// Crop a region from a base64 preview image, save it, and return the result.
+#[tauri::command]
+pub async fn capture_region_from_preview(
+    app: AppHandle,
+    preview_data: String,
+    region: RegionBounds,
+    prefs: State<'_, PreferencesStore>,
+    history: State<'_, HistoryStore>,
+) -> Result<CaptureResult, GrabError> {
+    // Decode the base64 preview
+    let base64_data = preview_data
+        .split(',')
+        .nth(1)
+        .ok_or_else(|| GrabError::InvalidRequest("Invalid data URL".to_string()))?;
+
+    let bytes = base64::engine::general_purpose::STANDARD
+        .decode(base64_data)
+        .map_err(|e| GrabError::CaptureFailed(e.to_string()))?;
+
+    let full_image = image::load_from_memory(&bytes)
+        .map_err(|e| GrabError::CaptureFailed(e.to_string()))?
+        .to_rgba8();
+
+    // Crop to the selected region
+    let x = (region.x.max(0) as u32).min(full_image.width().saturating_sub(1));
+    let y = (region.y.max(0) as u32).min(full_image.height().saturating_sub(1));
+    let width = region.width.min(full_image.width().saturating_sub(x));
+    let height = region.height.min(full_image.height().saturating_sub(y));
+
+    if width == 0 || height == 0 {
+        return Err(GrabError::InvalidRequest("Invalid region dimensions".to_string()));
+    }
+
+    let cropped = image::imageops::crop_imm(&full_image, x, y, width, height).to_image();
+
+    let metadata = crate::types::CaptureMetadata {
+        mode: crate::types::CaptureMode::Region,
+        display_id: None,
+        window_id: None,
+        bounds: RegionBounds { x: region.x, y: region.y, width, height },
+        timestamp: chrono::Utc::now().to_rfc3339(),
+        scale_factor: 1.0,
+        file_name: None,
+    };
+
+    let preferences = prefs.get();
+    let result = save_and_process_capture(&app, &cropped, metadata, &preferences, &history).await?;
+    Ok(result)
 }
 
 // ============================================================================

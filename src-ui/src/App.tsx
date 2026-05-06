@@ -75,10 +75,16 @@ function App() {
     };
   }, [loadHistory, loadPreferences, setCurrentCapture]);
 
-  const handleRegionSelected = async (region: { x: number; y: number; width: number; height: number }) => {
+  const handleRegionSelected = async (
+    region: { x: number; y: number; width: number; height: number },
+    previewData: string
+  ) => {
     setShowRegionOverlay(false);
     try {
-      const result = await invoke<{ file_path: string | null }>('capture_region', { region });
+      const result = await invoke<{ file_path: string | null }>('capture_region_from_preview', {
+        previewData,
+        region,
+      });
       loadHistory();
       if (result.file_path) {
         setCurrentCapture(result.file_path);

@@ -1,4 +1,6 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { invoke } from '@tauri-apps/api/core';
+import { startDrag } from '@crabnebula/tauri-plugin-drag';
 import { HistoryItem } from '../state/store';
 
 interface SidebarProps {
@@ -14,7 +16,6 @@ function LazyThumbnail({ filePath, isVisible }: { filePath: string; isVisible: b
 
   useEffect(() => {
     if (isVisible && !url) {
-      // Only convert URL when thumbnail becomes visible
       setUrl(`asset://localhost/${encodeURIComponent(filePath)}`);
     }
   }, [isVisible, filePath, url]);
@@ -44,6 +45,33 @@ function LazyThumbnail({ filePath, isVisible }: { filePath: string; isVisible: b
 export default function Sidebar({ history, currentCapture, onSelectCapture }: SidebarProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [visibleItems, setVisibleItems] = useState<Set<string>>(new Set());
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+  const dragIconRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    invoke<string>('get_drag_icon_path')
+      .then((path) => { dragIconRef.current = path; })
+      .catch(() => { dragIconRef.current = null; });
+  }, []);
+
+  const handleCopyImage = useCallback(async (e: React.MouseEvent, item: HistoryItem) => {
+    e.stopPropagation();
+    try {
+      await invoke('copy_to_clipboard', { data: item.filePath });
+      setCopiedId(item.id);
+      setTimeout(() => setCopiedId(null), 1500);
+    } catch (err) {
+      console.error('Copy to clipboard failed:', err);
+    }
+  }, []);
+
+  const handleDragStart = useCallback((e: React.DragEvent, item: HistoryItem) => {
+    e.preventDefault();
+    startDrag({
+      item: [item.filePath],
+      icon: dragIconRef.current ?? '',
+    }).catch((err) => console.error('Native drag failed:', err));
+  }, []);
 
   // Use IntersectionObserver for lazy loading
   useEffect(() => {
@@ -64,19 +92,17 @@ export default function Sidebar({ history, currentCapture, onSelectCapture }: Si
       },
       {
         root: containerRef.current,
-        rootMargin: '50px', // Load slightly before visible
+        rootMargin: '50px',
         threshold: 0,
       }
     );
 
-    // Observe all history items
     const items = containerRef.current?.querySelectorAll('.history-item');
     items?.forEach((item) => observer.observe(item));
 
     return () => observer.disconnect();
   }, [history]);
 
-  // Group history by date
   const groupedHistory = groupByDate(history);
 
   return (
@@ -98,6 +124,9 @@ export default function Sidebar({ history, currentCapture, onSelectCapture }: Si
                     data-id={item.id}
                     className={`history-item ${currentCapture === item.filePath ? 'active' : ''}`}
                     onClick={() => onSelectCapture(item.filePath)}
+                    draggable
+                    onDragStart={(e) => handleDragStart(e, item)}
+                    title="Drag to share, click to open"
                   >
                     <LazyThumbnail
                       filePath={item.filePath}
@@ -111,6 +140,22 @@ export default function Sidebar({ history, currentCapture, onSelectCapture }: Si
                         {formatTime(item.timestamp)}
                       </div>
                     </div>
+                    <button
+                      className={`copy-btn ${copiedId === item.id ? 'copied' : ''}`}
+                      title="Copy image to clipboard (Ctrl+V to paste into Claude)"
+                      onClick={(e) => handleCopyImage(e, item)}
+                    >
+                      {copiedId === item.id ? (
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                          <polyline points="20 6 9 17 4 12" />
+                        </svg>
+                      ) : (
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                          <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                        </svg>
+                      )}
+                    </button>
                   </div>
                 ))}
               </div>
